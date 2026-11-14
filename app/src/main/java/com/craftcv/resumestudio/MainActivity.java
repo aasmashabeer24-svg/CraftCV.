@@ -30,6 +30,15 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.FrameLayout;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.UserMessagingPlatform;
 import android.webkit.URLUtil;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -38,7 +47,13 @@ public class MainActivity extends Activity {
     private static final String HOME = "https://craftcv-hees13.v2.appdeploy.ai/";
     private static final String HOST = "craftcv-hees13.v2.appdeploy.ai";
     private static final int PICK_FILE = 301;
+    // Official Google test unit: never replace with a partner-bidding ID for direct AdMob.
+    private static final String TEST_BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
     private WebView webView;
+    private FrameLayout bannerContainer;
+    private AdView bannerAd;
+    private ConsentInformation consentInformation;
+    private boolean adsStarted = false;
     private LinearLayout root;
     private TextView message;
     private android.webkit.ValueCallback<Uri[]> pendingFiles;
@@ -77,6 +92,10 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         root.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
         configure();
+        bannerContainer = new FrameLayout(this);
+        bannerContainer.setVisibility(View.GONE);
+        root.addView(bannerContainer, new LinearLayout.LayoutParams(-1, -2));
+        initializeConsentAndTestAds();
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
@@ -87,6 +106,43 @@ public class MainActivity extends Activity {
             );
         }
         webView.loadUrl(HOME);
+    }
+
+    /** Request current consent status before ever attempting a test ad request. */
+    private void initializeConsentAndTestAds() {
+        consentInformation = UserMessagingPlatform.getConsentInformation(this);
+        ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
+        consentInformation.requestConsentInfoUpdate(this, params,
+            () -> {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this, formError -> {
+                    if (consentInformation.canRequestAds()) startTestBanner();
+                });
+            },
+            error -> {
+                // If the UMP request fails, do not request a fresh ad without consent.
+                if (consentInformation.canRequestAds()) startTestBanner();
+            }
+        );
+    }
+
+    private void startTestBanner() {
+        // Keep all release builds ad-free until a valid STANDARD production unit is configured.
+        if (!BuildConfig.DEBUG || adsStarted || bannerContainer == null) return;
+        adsStarted = true;
+        new Thread(() -> MobileAds.initialize(getApplicationContext(), initializationStatus -> {
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                bannerAd = new AdView(this);
+                bannerAd.setAdUnitId(TEST_BANNER_ID);
+                bannerAd.setAdSize(AdSize.BANNER);
+                bannerAd.setAdListener(new AdListener() {
+                    @Override public void onAdLoaded() { bannerContainer.setVisibility(View.VISIBLE); }
+                    @Override public void onAdFailedToLoad(com.google.android.gms.ads.LoadAdError error) { bannerContainer.setVisibility(View.GONE); }
+                });
+                bannerContainer.addView(bannerAd, new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER));
+                bannerAd.loadAd(new AdRequest.Builder().build());
+            });
+        })).start();
     }
 
     private int dp(int value){return Math.round(getResources().getDisplayMetrics().density*value);}
@@ -194,6 +250,7 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
     @Override protected void onDestroy(){
+        if(bannerAd!=null){bannerAd.destroy();bannerAd=null;}
         if(webView!=null){root.removeView(webView);webView.destroy();webView=null;}
         super.onDestroy();
     }
