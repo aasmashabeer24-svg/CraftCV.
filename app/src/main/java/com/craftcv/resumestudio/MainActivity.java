@@ -77,6 +77,15 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         root.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
         configure();
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (webView != null && webView.canGoBack()) webView.goBack();
+                    else finish();
+                }
+            );
+        }
         webView.loadUrl(HOME);
     }
 
@@ -178,6 +187,8 @@ public class MainActivity extends Activity {
             pendingFiles=null;
         }
     }
+    @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed(){
         if(webView!=null && webView.canGoBack())webView.goBack();
         else super.onBackPressed();
