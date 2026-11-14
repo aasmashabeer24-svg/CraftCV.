@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace 'com.craftcv.resumestudio'
+    buildFeatures { buildConfig true }
     compileSdk 36
 
     defaultConfig {
