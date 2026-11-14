@@ -4,9 +4,16 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      web_url:
+        description: 'HTTPS CraftCV site origin; leave blank for existing AppDeploy site'
+        required: false
+        type: string
 jobs:
   android:
     runs-on: ubuntu-latest
+    env:
+      CRAFTCV_WEB_URL: ${{ github.event.inputs.web_url || '' }}
     permissions:
       contents: read
     steps:

@@ -2,12 +2,35 @@ plugins {
     id 'com.android.application'
 }
 
+/*
+ * Site origin is configurable for an eventual independent CraftCV deployment.
+ * Do not set this to an unverified host: the website/backend are not part of
+ * this Android repository. No cross-domain session or database migration happens here.
+ */
+def craftcvWebOverride = System.getenv('CRAFTCV_WEB_URL') ?: findProperty('craftcvWebUrl')
+def craftcvWebUrl = (craftcvWebOverride ?: 'https://craftcv-hees13.v2.appdeploy.ai/').toString().trim()
+def craftcvSite
+try {
+    craftcvSite = new java.net.URI(craftcvWebUrl)
+} catch (java.net.URISyntaxException e) {
+    throw new GradleException('CRAFTCV_WEB_URL must be a valid HTTPS site origin', e)
+}
+if (craftcvSite.scheme?.toLowerCase(java.util.Locale.ROOT) != 'https' ||
+    !craftcvSite.host || craftcvSite.userInfo != null ||
+    (craftcvSite.path && craftcvSite.path != '/') ||
+    craftcvSite.query != null || craftcvSite.fragment != null ||
+    craftcvSite.port != -1) {
+    throw new GradleException('CRAFTCV_WEB_URL must be an HTTPS origin, e.g. https://cv.example.com/ (no path, port, query or fragment)')
+}
+def craftcvSiteHost = craftcvSite.host.toLowerCase(java.util.Locale.ROOT)
+
 android {
     namespace 'com.craftcv.resumestudio'
     buildFeatures { buildConfig true }
     compileSdk 36
 
     defaultConfig {
+        buildConfigField 'String', 'CRAFTCV_WEB_URL', "\"https://${craftcvSiteHost}/\""
         applicationId 'com.craftcv.resumestudio'
         minSdk 26
         targetSdk 36

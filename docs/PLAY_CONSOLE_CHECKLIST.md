@@ -8,7 +8,7 @@ The Android shell in this repository uses the live CraftCV web app. Do not claim
 - [x] HTTPS-only WebView for the CraftCV host; external links hand off to an Android browser.
 - [x] File chooser support for photo/document input.
 - [x] Android CI workflow for lint + debug APK; manual release AAB job *requires* signing secrets.
-- [ ] GitHub Actions first build must pass; inspect logs and fix any SDK/Gradle warnings.
+- [x] GitHub Actions debug build + lint passed on 2026-11-14 (run #10). Repeat the checks against the independent hosting branch and final production domain.
 - [ ] Confirm Google login and AppDeploy redirect authentications work inside WebView. OAuth providers may reject embedded browsers; integrate supported native or Custom Tabs login if needed.
 - [ ] Confirm PDF printing, Word downloads, photo picker, cloud sync, and account deletion on Android.
 - [ ] Android release bundle must be signed and verified.
@@ -36,6 +36,9 @@ The Android shell in this repository uses the live CraftCV web app. Do not claim
 - [ ] Upload signed AAB via Google Play Console and finish all warnings and pre-launch reports.
 
 ## Important limitations
+
+The Android website origin is now build-time configurable (`CRAFTCV_WEB_URL` / `-PcraftcvWebUrl`). See `docs/INDEPENDENT_HOSTING_MIGRATION.md`. This does **not** migrate the website or user data.
+
 This repository contains a **WebView wrapper** for the existing live web app, not the website source. If AppDeploy is down, many core features will not be available. Google may reject low-functionality WebView wrappers. Resolve login/print limitations before production. Never claim the bundle is approved simply because it compiles.
 
 As of 2026-11-14 Google's 2026 requirement for new phone apps is Android 16 / API level 36.
