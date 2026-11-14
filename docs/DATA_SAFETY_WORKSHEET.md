@@ -24,3 +24,9 @@ This is a research worksheet, NOT a completed Google Play Console declaration. A
 8. Does the native WebView request permissions beyond INTERNET and network state? Recheck final manifest merger.
 
 Do not guess answers for Google Play; falsely answering 'No data collected' may violate policy.
+
+## AdMob update (2026-11-14)
+- Android app now includes Google Mobile Ads SDK 25.5.0 and UMP SDK 4.0.0. The actual AdMob App ID is in AndroidManifest.xml.
+- Google official test banner only loads in DEBUG builds after UMP canRequestAds() returns true; RELEASE builds intentionally do not show ads yet.
+- The supplied ad unit `ca-app-pub-3517751367362331/3094894516` is for **partner bidding** and must NOT be passed as a standard banner ID. Create a Standard Banner unit to use direct AdMob, or provide details for a supported third-party mediation service.
+- Before production, configure Privacy & messaging in AdMob, implement privacy-options access as required, verify SDK / consent behavior, update the public privacy policy and Play Data Safety, and disclose "Contains ads" if ads are enabled.
