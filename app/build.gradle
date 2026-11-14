@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.craftcv.resumestudio'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.craftcv.resumestudio'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    signingConfigs {
+        release {
+            def path = System.getenv('CRAFTCV_KEYSTORE_PATH')
+            if (path) {
+                storeFile file(path)
+                storePassword System.getenv('CRAFTCV_STORE_PASSWORD')
+                keyAlias System.getenv('CRAFTCV_KEY_ALIAS')
+                keyPassword System.getenv('CRAFTCV_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (System.getenv('CRAFTCV_KEYSTORE_PATH')) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug { applicationIdSuffix '.debug' }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+}

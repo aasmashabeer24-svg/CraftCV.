@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+<defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#112E43"/><stop offset="1" stop-color="#388677"/></linearGradient></defs>
+<rect width="1024" height="500" fill="url(#g)"/>
+<circle cx="888" cy="72" r="204" fill="#a8f2d8" opacity=".08"/>
+<g transform="translate(678,54) rotate(8)"><rect width="232" height="347" rx="11" fill="#8dccbb"/></g>
+<g transform="translate(625,65) rotate(-7)"><rect width="232" height="347" rx="11" fill="#fff"/><circle cx="47" cy="56" r="26" fill="#b3d9d0"/><rect x="85" y="38" width="116" height="15" rx="5" fill="#246171"/><rect x="85" y="64" width="91" height="9" rx="4" fill="#94afb4"/><path stroke="#d3e0e1" stroke-width="7" stroke-linecap="round" d="M25 122h184M25 150h173M25 178h183M25 213h154M25 243h187M25 271h179M25 305h162"/></g>
+<text x="62" y="195" fill="#c2efdf" font-family="Arial,sans-serif" font-size="31" font-weight="700">CraftCV</text>
+<text x="61" y="275" fill="#fff" font-family="Arial,sans-serif" font-size="57" font-weight="700">Your story.</text>
+<text x="61" y="345" fill="#fff" font-family="Arial,sans-serif" font-size="57" font-weight="700">Your design.</text>
+<text x="62" y="399" fill="#c5e6dd" font-family="Arial,sans-serif" font-size="23">Beautiful CVs, made by you.</text>
+</svg>
