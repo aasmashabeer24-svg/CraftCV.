@@ -44,8 +44,9 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 
 public class MainActivity extends Activity {
-    private static final String HOME = "https://craftcv-hees13.v2.appdeploy.ai/";
-    private static final String HOST = "craftcv-hees13.v2.appdeploy.ai";
+    private static final String HOME = BuildConfig.CRAFTCV_WEB_URL;
+    private static final Uri HOME_URI = Uri.parse(HOME);
+    private static final String HOST = HOME_URI.getHost();
     private static final int PICK_FILE = 301;
     // Official Google test unit: never replace with a partner-bidding ID for direct AdMob.
     private static final String TEST_BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
@@ -54,6 +55,7 @@ public class MainActivity extends Activity {
     private AdView bannerAd;
     private ConsentInformation consentInformation;
     private boolean adsStarted = false;
+    private boolean pageLoadFailed = false;
     private LinearLayout root;
     private TextView message;
     private android.webkit.ValueCallback<Uri[]> pendingFiles;
@@ -158,7 +160,9 @@ public class MainActivity extends Activity {
         layout.addView(button,new LinearLayout.LayoutParams(0,-1,label.equals("CraftCV")?2:1));
     }
     private boolean trusted(Uri uri){
-        return "https".equalsIgnoreCase(uri.getScheme()) && HOST.equalsIgnoreCase(uri.getHost());
+        return "https".equalsIgnoreCase(uri.getScheme())
+            && HOST.equalsIgnoreCase(uri.getHost())
+            && uri.getPort() == HOME_URI.getPort();
     }
     private void openExternal(String target){
         try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(target))); }
@@ -185,6 +189,9 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView,false);
         webView.setWebViewClient(new WebViewClient(){
+            @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon){
+                pageLoadFailed = false;
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
                 if (trusted(uri)) return false;
@@ -195,18 +202,27 @@ public class MainActivity extends Activity {
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
                 if(request.isForMainFrame()){
+                    pageLoadFailed = true;
                     message.setText("CraftCV couldn't connect. Check your internet connection, then tap Refresh.");
                     message.setVisibility(View.VISIBLE);
                 }
             }
+            @Override public void onReceivedHttpError(WebView view,WebResourceRequest request,android.webkit.WebResourceResponse response){
+                if(request.isForMainFrame() && response.getStatusCode() >= 400){
+                    pageLoadFailed = true;
+                    message.setText("CraftCV is temporarily unavailable (HTTP "+response.getStatusCode()+"). Tap Refresh to retry.");
+                    message.setVisibility(View.VISIBLE);
+                }
+            }
             @Override public void onPageFinished(WebView view,String url){
-                if(!message.getText().toString().isEmpty() && trusted(Uri.parse(url))){
+                if(!pageLoadFailed && !message.getText().toString().isEmpty() && trusted(Uri.parse(url))){
                     message.setVisibility(View.GONE);
                     message.setText("");
                 }
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
+                pageLoadFailed = true;
                 message.setText("Secure connection failed. Please try again later.");
                 message.setVisibility(View.VISIBLE);
             }
