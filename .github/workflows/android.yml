@@ -30,6 +30,14 @@ jobs:
       - name: Build debug APK and lint
         run: |
           gradle --no-daemon :app:lintDebug :app:assembleDebug
+      - name: Show Android lint diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          find app/build -name 'lint-results-debug.txt' -o -name 'lint-results-debug.xml' | while read -r file; do
+            echo "---- $file ----"
+            if [[ "$file" == *.txt ]]; then cat "$file"; fi
+          done
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
