@@ -52,6 +52,8 @@ public final class NativeResumeActivity extends Activity {
     private TextView preview;
     private TextView status;
     private boolean loading = false;
+    private final android.os.Handler saveHandler=new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable savePending=()->{if(!loading)save();};
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -117,6 +119,10 @@ public final class NativeResumeActivity extends Activity {
         addCommand(moreCommands,"Delete",this::deleteResume);
         addCommand(moreCommands,"Share PDF",this::sharePdf);
         addCommand(moreCommands,"Cover letter",this::openCoverLetter);
+        LinearLayout quickActions=new LinearLayout(this);quickActions.setOrientation(LinearLayout.HORIZONTAL);content.addView(quickActions);
+        addCommand(quickActions,"Student starter",this::studentStarter);
+        addCommand(quickActions,"Resume check",this::resumeCheck);
+        addCommand(quickActions,"Surprise style",this::surpriseStyle);
         TextView choose=label("PICK YOUR DESIGN",11,Color.rgb(62,112,111));
         choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(choose);
         content.addView(label("12 color and typography styles. Several share the same basic layout.",11,Color.rgb(105,125,130)));
@@ -144,6 +150,16 @@ public final class NativeResumeActivity extends Activity {
             if(i==3) input.setInputType(InputType.TYPE_CLASS_PHONE);
             input.setHint(i>=6 ? "One achievement or detail per line" : fields[i]);
             inputs[i]=input;content.addView(input);
+            input.addTextChangedListener(new android.text.TextWatcher(){
+                @Override public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+                @Override public void onTextChanged(CharSequence value,int start,int before,int count){}
+                @Override public void afterTextChanged(android.text.Editable value){
+                    if(loading)return;
+                    updatePreview();
+                    saveHandler.removeCallbacks(savePending);
+                    saveHandler.postDelayed(savePending,1100);
+                }
+            });
         }
         status=label("",12,Color.rgb(63,125,104));
         status.setPadding(0,dp(15),0,dp(10));content.addView(status);
@@ -186,6 +202,7 @@ public final class NativeResumeActivity extends Activity {
         preferences().edit().putString(KEY_CURRENT,currentId).apply();
     }
     private void createNew(boolean confirm) {
+        saveHandler.removeCallbacks(savePending);
         if(confirm){new AlertDialog.Builder(this).setMessage("Start a new resume? Unsaved changes will be lost.").setPositiveButton("Create",(d,w)->createNew(false)).setNegativeButton("Cancel",null).show();return;}
         currentId="native-"+System.currentTimeMillis();
         style=0;for(EditText input:inputs)input.setText("");
@@ -204,6 +221,40 @@ public final class NativeResumeActivity extends Activity {
             status.setText("Saved privately on this device.");
             updatePreview();
         }catch(Exception e){status.setText("Could not save resume.");}
+    }
+    private void studentStarter(){
+        new AlertDialog.Builder(this).setTitle("New student / fresher CV?")
+            .setMessage("Create a blank first-job CV without fake work history. Unsaved changes in the current CV will be replaced.")
+            .setNegativeButton("Cancel",null)
+            .setPositiveButton("Create",(dialog,which)->{
+                saveHandler.removeCallbacks(savePending);
+                createNew(false);
+                inputs[1].setText("Student / Fresh Graduate");
+                inputs[6].setText("");
+                inputs[7].setText("");
+                inputs[8].setText("");
+                status.setText("Add education, projects and genuine skills. You do not need job experience.");
+                save();
+            }).show();
+    }
+    private void resumeCheck(){
+        java.util.ArrayList<String> suggestions=new java.util.ArrayList<>();
+        if(value(0,"").isEmpty())suggestions.add("Add your full name.");
+        if(value(1,"").isEmpty())suggestions.add("Add a professional title or target role.");
+        if(!android.util.Patterns.EMAIL_ADDRESS.matcher(value(2,"")).matches())suggestions.add("Add a valid email.");
+        if(value(5,"").length()<45)suggestions.add("Write a short, factual summary (at least 45 characters).");
+        if(value(7,"").isEmpty())suggestions.add("Add your education or relevant qualification.");
+        if(value(8,"").isEmpty())suggestions.add("List skills relevant to the job.");
+        if(value(6,"").isEmpty() && value(9,"").isEmpty())suggestions.add("Include an internship, project or real experience if available.");
+        String result=suggestions.isEmpty()?"All basic CV completeness checks passed. Review your claims and PDF layout before applying.":"Suggested improvements:\n\n• "+android.text.TextUtils.join("\n• ",suggestions);
+        new AlertDialog.Builder(this).setTitle("Resume completeness (not an ATS guarantee)")
+            .setMessage(result).setPositiveButton("OK",null).show();
+    }
+    private void surpriseStyle(){
+        int next=(int)(Math.random()*themes.length);
+        if(next==style)next=(next+1)%themes.length;
+        style=next;updatePreview();save();
+        Toast.makeText(this,"New style: "+themes[style],Toast.LENGTH_SHORT).show();
     }
     private void openCoverLetter(){
         Intent intent=new Intent(this,CoverLetterActivity.class);
@@ -358,6 +409,11 @@ public final class NativeResumeActivity extends Activity {
             startActivityForResult(save,CREATE_PDF);
         }catch(Exception e){pendingPdf=null;status.setText("PDF export failed: "+e.getMessage());}
         finally {pdf.close();}
+    }
+    @Override protected void onPause(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        super.onPause();
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
