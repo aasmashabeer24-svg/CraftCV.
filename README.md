@@ -7,8 +7,11 @@ CraftCV now has an **offline native Android resume editor** as its launcher scre
 - Native Android UI that works when AppDeploy and the internet are unavailable.
 - Locally saved resumes with a resume switcher and multiple CVs.
 - Edit personal details, summary, experience, education, skills, and projects.
-- Editorial, Modern, and Creative color themes with an on-device text preview.
-- Android-native PDF export using the system Save As document picker.
+- 12 native color/typography presets (not yet 12 completely different page layouts), Surprise Style, and on-device preview.
+- Android-native PDF export with width-based wrapping, multiple pages, Save As document picker, and a Share PDF action for compatible apps.
+- Duplicate/delete multiple local CVs with confirmation and automatic local saving.
+- Student/fresh-graduate starter and clear resume-completeness checklist (not an ATS guarantee).
+- Offline editable cover-letter maker, manual draft saving, and cover-letter PDF export.
 - The previous advanced CraftCV website remains available as an **optional online studio**.
 - No AdMob SDK or test ad banners inside the Android app.
 - Android 16/API 36 target and GitHub Actions lint/debug build workflow retained.
@@ -17,7 +20,7 @@ CraftCV now has an **offline native Android resume editor** as its launcher scre
 
 This is a **phased migration**, not a claim that every feature is offline or native yet. The native editor is independent of AppDeploy for the tasks above. Advanced AI writing, online cloud accounts, advanced website designs, and DOCX export are still features of the optional web studio, and may be affected when AppDeploy is unavailable.
 
-Offline resume data lives in Android app-private storage. It is not automatically synced with web accounts. It is not yet encrypted with an app-specific encryption layer. Uninstalling or clearing app data can erase local CVs; export PDFs and keep copies.
+The CV and cover letter PDF exporters need a physical-device verification of Unicode text, multiple pages and shares to messaging apps. The online AppDeploy website can still show provider pause screens when opened through the optional online studio.\n\nOffline resume data lives in Android app-private storage. It is not automatically synced with web accounts. It is not yet encrypted with an app-specific encryption layer. Uninstalling or clearing app data can erase local CVs; export PDFs and keep copies.
 
 An Android App Bundle (AAB) must still be built with a **private signing key**, tested on real devices, and reviewed before Google Play release. Do not commit keystores or secrets.
 
@@ -27,7 +30,7 @@ An Android App Bundle (AAB) must still be built with a **private signing key**, 
 2. Let Gradle sync with Android SDK 36 installed.
 3. Run `./gradlew :app:assembleDebug` if you have the Gradle wrapper available, or `gradle :app:assembleDebug` with a compatible Gradle installation.
 4. Install the debug APK on a phone. The launcher opens `NativeResumeActivity`.
-5. Test creating, saving, reopening, editing, and exporting a CV.
+5. Test creating, saving, reopening, duplicating, deleting, editing, exporting/sharing a PDF, starting a student CV, and generating/editing/exporting a cover letter.
 6. Use **Open advanced web studio** if online advanced functionality is needed.
 
 The CI workflow performs `:app:lintDebug` and `:app:assembleDebug` on pushes and pull requests. Manual signed AAB builds require signing secrets.
