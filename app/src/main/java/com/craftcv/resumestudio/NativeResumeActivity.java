@@ -285,41 +285,66 @@ public final class NativeResumeActivity extends Activity {
         String text=inputs[index].getText().toString().trim();
         return text.isEmpty()?fallback:text;
     }
+    private java.util.ArrayList<String> wrapPdf(String raw,Paint paint,float width){
+        java.util.ArrayList<String> output=new java.util.ArrayList<>();
+        for(String paragraph:raw.split("\\n",-1)){
+            if(paragraph.trim().isEmpty()){output.add("");continue;}
+            StringBuilder line=new StringBuilder();
+            for(String word:paragraph.trim().split("\\s+")){
+                if(paint.measureText(word)>width){
+                    if(line.length()>0){output.add(line.toString());line.setLength(0);}
+                    for(int j=0;j<word.length();j++){
+                        String next=line.toString()+word.charAt(j);
+                        if(paint.measureText(next)>width && line.length()>0){output.add(line.toString());line.setLength(0);}
+                        line.append(word.charAt(j));
+                    }
+                }else{
+                    String next=line.length()==0?word:line+" "+word;
+                    if(paint.measureText(next)>width && line.length()>0){output.add(line.toString());line.setLength(0);}
+                    if(line.length()>0)line.append(' ');
+                    line.append(word);
+                }
+            }
+            if(line.length()>0)output.add(line.toString());
+        }
+        return output;
+    }
     private void exportPDF(){
         if(value(0,"").trim().isEmpty()){Toast.makeText(this,"Enter your name before exporting",Toast.LENGTH_LONG).show();return;}
         save();
         PdfDocument pdf=new PdfDocument();
-        Paint paint=new Paint(3);
+        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
         int pageNo=1;
         PdfDocument.Page page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,pageNo).create());
         Canvas canvas=page.getCanvas();
-        int y=55;
-        paint.setColor(colors[style]);paint.setTextSize(23);paint.setFakeBoldText(true);
-        canvas.drawText(fit(value(0,"Your Name"),38),45,y,paint);y+=27;
-        paint.setTextSize(13);paint.setFakeBoldText(false);
-        canvas.drawText(fit(value(1,""),72),45,y,paint);y+=19;
-        paint.setColor(Color.DKGRAY);paint.setTextSize(10);
-        canvas.drawText(fit(value(2,"")+"   "+value(3,"")+"   "+value(4,""),95),45,y,paint);y+=34;
+        int y=57;
+        int primary=colors[style];
+        if(style==2||style==4||style==7){
+            paint.setColor(primary);
+            canvas.drawRect(0,0,595,27,paint);
+        }
+        paint.setTypeface(android.graphics.Typeface.create(style==0||style==5||style==10?"serif":"sans-serif",android.graphics.Typeface.BOLD));
+        paint.setTextSize(style==7?28:style==9?20:24);paint.setColor(style==11?Color.BLACK:primary);
+        for(String line:wrapPdf(value(0,"Your Name"),paint,500)){canvas.drawText(line,45,y,paint);y+=30;}
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif",android.graphics.Typeface.NORMAL));
+        paint.setTextSize(13);
+        for(String line:wrapPdf(value(1,""),paint,500)){canvas.drawText(line,45,y,paint);y+=18;}
+        paint.setTextSize(10);paint.setColor(Color.DKGRAY);
+        for(String line:wrapPdf(value(2,"")+"  •  "+value(3,"")+"  •  "+value(4,""),paint,500)){canvas.drawText(line,45,y,paint);y+=15;}
+        y+=13;paint.setColor(primary);paint.setStrokeWidth(1.4f);canvas.drawLine(45,y,550,y,paint);y+=28;
         for(int i=5;i<keys.length;i++){
             String contents=value(i,"").trim();if(contents.isEmpty())continue;
-            if(y>744){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());canvas=page.getCanvas();y=55;}
-            paint.setColor(colors[style]);paint.setFakeBoldText(true);paint.setTextSize(12);
+            if(y>730){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());canvas=page.getCanvas();y=58;}
+            paint.setColor(style==11?Color.BLACK:primary);paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            paint.setTextSize(style==9?11:12);
             canvas.drawText(fields[i].toUpperCase(Locale.ROOT),45,y,paint);y+=20;
-            paint.setColor(Color.DKGRAY);paint.setFakeBoldText(false);paint.setTextSize(10);
-            for(String para:contents.split("\n")){
-                String line=para.trim();
-                while(!line.isEmpty()){
-                    int end=Math.min(line.length(),90);
-                    if(end<line.length()){
-                        int gap=line.lastIndexOf(' ',end);
-                        if(gap>20)end=gap;
-                    }
-                    if(y>780){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());canvas=page.getCanvas();y=55;}
-                    canvas.drawText(line.substring(0,end),45,y,paint);y+=16;
-                    line=line.substring(end).trim();
-                }
+            paint.setTypeface(android.graphics.Typeface.DEFAULT);paint.setColor(Color.rgb(50,55,60));paint.setTextSize(10);
+            for(String line:wrapPdf(contents,paint,500)){
+                if(y>780){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());canvas=page.getCanvas();y=58;}
+                if(!line.isEmpty())canvas.drawText(line,45,y,paint);
+                y+=line.isEmpty()?9:(style==9?14:16);
             }
-            y+=15;
+            y+=style==9?8:15;
         }
         pdf.finishPage(page);
         try {
