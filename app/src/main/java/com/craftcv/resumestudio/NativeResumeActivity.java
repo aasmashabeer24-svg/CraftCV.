@@ -38,6 +38,8 @@ public final class NativeResumeActivity extends Activity {
     private static final String KEY_ITEMS = "resumes";
     private static final String KEY_CURRENT = "current";
     private static final int CREATE_PDF = 411;
+    private static final int CREATE_DOCX = 412;
+    private byte[] pendingDocx;
     private byte[] pendingPdf;
     private Uri lastSavedPdf;
     private final String[] fields = {"Full name", "Professional title", "Email", "Phone", "Location",
@@ -123,6 +125,7 @@ public final class NativeResumeActivity extends Activity {
         addCommand(quickActions,"Student starter",this::studentStarter);
         addCommand(quickActions,"Resume check",this::resumeCheck);
         addCommand(quickActions,"Surprise style",this::surpriseStyle);
+        addCommand(quickActions,"Word DOCX",this::exportDocx);
         TextView choose=label("PICK YOUR DESIGN",11,Color.rgb(62,112,111));
         choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(choose);
         content.addView(label("12 color and typography styles. Several share the same basic layout.",11,Color.rgb(105,125,130)));
@@ -336,6 +339,20 @@ public final class NativeResumeActivity extends Activity {
         String text=inputs[index].getText().toString().trim();
         return text.isEmpty()?fallback:text;
     }
+    private void exportDocx(){
+        if(value(0,"").trim().isEmpty()){
+            Toast.makeText(this,"Add your name before exporting",Toast.LENGTH_LONG).show();return;
+        }
+        save();
+        try{
+            pendingDocx=DocxExport.create(snapshot());
+            Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            intent.putExtra(Intent.EXTRA_TITLE,"CraftCV-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date())+".docx");
+            startActivityForResult(intent,CREATE_DOCX);
+        }catch(Exception e){pendingDocx=null;status.setText("Word export failed: "+e.getMessage());}
+    }
     private java.util.ArrayList<String> wrapPdf(String raw,Paint paint,float width){
         java.util.ArrayList<String> output=new java.util.ArrayList<>();
         for(String paragraph:raw.split("\\n",-1)){
@@ -417,6 +434,17 @@ public final class NativeResumeActivity extends Activity {
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==CREATE_DOCX){
+            if(resultCode==RESULT_OK && data!=null && data.getData()!=null && pendingDocx!=null){
+                try(OutputStream out=getContentResolver().openOutputStream(data.getData())){
+                    if(out==null)throw new IllegalStateException("Could not open document");
+                    out.write(pendingDocx);
+                    status.setText("Editable Word DOCX saved to selected location.");
+                }catch(Exception e){status.setText("Word save failed.");}
+            }
+            pendingDocx=null;
+            return;
+        }
         if(requestCode!=CREATE_PDF)return;
         if(resultCode==RESULT_OK && data!=null && data.getData()!=null && pendingPdf!=null){
             try(OutputStream stream=getContentResolver().openOutputStream(data.getData())){
