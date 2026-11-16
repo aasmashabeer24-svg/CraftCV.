@@ -9,8 +9,9 @@ CraftCV now has an **offline native Android resume editor** as its launcher scre
 - Edit personal details, summary, experience, education, skills, and projects.
 - 12 native color/typography presets (not yet 12 completely different page layouts), Surprise Style, and on-device preview.
 - Android-native PDF export with width-based wrapping, multiple pages, Save As document picker, and a Share PDF action for compatible apps.
+- Native editable DOCX export using an offline WordprocessingML writer, saved to a user-selected file.
 - Duplicate/delete multiple local CVs with confirmation and automatic local saving.
-- Student/fresh-graduate starter and clear resume-completeness checklist (not an ATS guarantee).
+- Student/fresh-graduate starter and clear resume-completeness checklist (not an ATS guarantee); autosave when editing.
 - Offline editable cover-letter maker, manual draft saving, and cover-letter PDF export.
 - The previous advanced CraftCV website remains available as an **optional online studio**.
 - No AdMob SDK or test ad banners inside the Android app.
@@ -18,9 +19,9 @@ CraftCV now has an **offline native Android resume editor** as its launcher scre
 
 ## Architecture and limitations
 
-This is a **phased migration**, not a claim that every feature is offline or native yet. The native editor is independent of AppDeploy for the tasks above. Advanced AI writing, online cloud accounts, advanced website designs, and DOCX export are still features of the optional web studio, and may be affected when AppDeploy is unavailable.
+This is a **phased migration**, not a claim that every feature is offline or native yet. The native editor is independent of AppDeploy for the tasks above. Advanced AI writing, online cloud accounts and advanced website designs are still features of the optional web studio, and may be affected when AppDeploy is unavailable. Native DOCX export is a basic editable document and does not reproduce artistic themes.
 
-The CV and cover letter PDF exporters need a physical-device verification of Unicode text, multiple pages and shares to messaging apps. The online AppDeploy website can still show provider pause screens when opened through the optional online studio.\n\nOffline resume data lives in Android app-private storage. It is not automatically synced with web accounts. It is not yet encrypted with an app-specific encryption layer. Uninstalling or clearing app data can erase local CVs; export PDFs and keep copies.
+The native CV PDF, DOCX, and cover-letter PDF exporters need physical-device verification (including Unicode text, file opening, multi-page documents and sharing to messaging apps). The online AppDeploy website can still show provider pause screens when opened through the optional online studio.\n\nOffline resume data lives in Android app-private storage. It is not automatically synced with web accounts. It is not yet encrypted with an app-specific encryption layer. Uninstalling or clearing app data can erase local CVs; export PDFs and keep copies.
 
 An Android App Bundle (AAB) must still be built with a **private signing key**, tested on real devices, and reviewed before Google Play release. Do not commit keystores or secrets.
 
