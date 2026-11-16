@@ -39,12 +39,13 @@ public final class NativeResumeActivity extends Activity {
     private static final String KEY_CURRENT = "current";
     private static final int CREATE_PDF = 411;
     private byte[] pendingPdf;
+    private Uri lastSavedPdf;
     private final String[] fields = {"Full name", "Professional title", "Email", "Phone", "Location",
             "Professional summary", "Work experience", "Education", "Skills", "Projects"};
     private final String[] keys = {"name","role","email","phone","location","summary","experience","education","skills","projects"};
     private final EditText[] inputs = new EditText[keys.length];
-    private final int[] colors = {Color.rgb(25,76,93), Color.rgb(60,88,77), Color.rgb(119,73,96)};
-    private final String[] themes = {"Editorial", "Modern", "Creative"};
+    private final int[] colors = {0xFF194C5D,0xFF3C584D,0xFF774960,0xFF303D48,0xFF274054,0xFF354458,0xFF417C69,0xFFB05241,0xFF3E5068,0xFF317071,0xFF906D59,0xFF252525};
+    private final String[] themes = {"Editorial","Modern","Creative","Minimal","Executive","Classic","Fresh","Bold","Academic","Compact","Elegant","Monochrome"};
     private int style = 0;
     private String currentId = "";
     private LinearLayout content;
@@ -111,14 +112,24 @@ public final class NativeResumeActivity extends Activity {
         addCommand(commands,"New CV",()->createNew(true));
         addCommand(commands,"Save",this::save);
         addCommand(commands,"PDF",this::exportPDF);
+        LinearLayout moreCommands=new LinearLayout(this);moreCommands.setOrientation(LinearLayout.HORIZONTAL);content.addView(moreCommands);
+        addCommand(moreCommands,"Duplicate",this::duplicateResume);
+        addCommand(moreCommands,"Delete",this::deleteResume);
+        addCommand(moreCommands,"Share PDF",this::sharePdf);
+        addCommand(moreCommands,"Cover letter",this::openCoverLetter);
         TextView choose=label("PICK YOUR DESIGN",11,Color.rgb(62,112,111));
         choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(choose);
-        LinearLayout themeRow=new LinearLayout(this);content.addView(themeRow);
-        for(int i=0;i<themes.length;i++){
-            final int selected=i;
-            Button button=action(themes[i],()->{style=selected;updatePreview();save();});
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(49),1);
-            p.setMargins(0,0,dp(5),0);themeRow.addView(button,p);
+        content.addView(label("12 color and typography styles. Several share the same basic layout.",11,Color.rgb(105,125,130)));
+        for(int group=0;group<3;group++){
+            LinearLayout themeRow=new LinearLayout(this);content.addView(themeRow);
+            for(int i=group*4;i<(group+1)*4;i++){
+                final int selected=i;
+                Button button=action(themes[i],()->{style=selected;updatePreview();save();});
+                button.setTextSize(10);
+                button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(colors[i]));
+                LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(46),1);
+                p.setMargins(0,0,dp(4),dp(4));themeRow.addView(button,p);
+            }
         }
         TextView title=label("YOUR DETAILS",11,Color.rgb(62,112,111));
         title.setTypeface(null,android.graphics.Typeface.BOLD);title.setPadding(0,dp(25),0,dp(8));content.addView(title);
@@ -194,6 +205,52 @@ public final class NativeResumeActivity extends Activity {
             updatePreview();
         }catch(Exception e){status.setText("Could not save resume.");}
     }
+    private void openCoverLetter(){
+        Intent intent=new Intent(this,CoverLetterActivity.class);
+        intent.putExtra(CoverLetterActivity.EXTRA_RESUME_NAME,value(0,""));
+        intent.putExtra(CoverLetterActivity.EXTRA_RESUME_ROLE,value(1,""));
+        intent.putExtra(CoverLetterActivity.EXTRA_RESUME_SUMMARY,value(5,""));
+        intent.putExtra(CoverLetterActivity.EXTRA_RESUME_SKILLS,value(8,""));
+        startActivity(intent);
+    }
+    private void duplicateResume(){
+        save();
+        JSONObject copy=snapshot();
+        currentId="native-"+System.currentTimeMillis()+"-copy";
+        inputs[0].setText(copy.optString("name","")+" (Copy)");
+        save();
+        status.setText("Duplicated. Your original remains saved.");
+    }
+    private void deleteResume(){
+        JSONArray items=readItems();
+        if(items.length()<2){Toast.makeText(this,"Keep one CV. Create another before deleting.",Toast.LENGTH_LONG).show();return;}
+        new AlertDialog.Builder(this).setTitle("Delete this resume?")
+            .setMessage("This removes the selected local resume from this phone. Keep a PDF backup.")
+            .setNegativeButton("Cancel",null)
+            .setPositiveButton("Delete",(dialog,which)->{
+                try {
+                    JSONArray remaining=new JSONArray();
+                    for(int i=0;i<items.length();i++){
+                        JSONObject item=items.optJSONObject(i);
+                        if(item!=null && !currentId.equals(item.optString("id")))remaining.put(item);
+                    }
+                    preferences().edit().putString(KEY_ITEMS,remaining.toString()).apply();
+                    load(remaining.getJSONObject(0));
+                    status.setText("Local resume deleted.");
+                }catch(Exception e){status.setText("Could not delete resume.");}
+            }).show();
+    }
+    private void sharePdf(){
+        if(lastSavedPdf==null){Toast.makeText(this,"Export and save a PDF first, then tap Share PDF.",Toast.LENGTH_LONG).show();return;}
+        try{
+            Intent share=new Intent(Intent.ACTION_SEND);
+            share.setType("application/pdf");
+            share.putExtra(Intent.EXTRA_STREAM,lastSavedPdf);
+            share.setClipData(android.content.ClipData.newUri(getContentResolver(),"CraftCV PDF",lastSavedPdf));
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share,"Share your CraftCV resume"));
+        }catch(Exception e){Toast.makeText(this,"Cannot share this PDF. Try saving a new copy.",Toast.LENGTH_LONG).show();}
+    }
     private void chooseResume(){
         JSONArray items=readItems();
         if(items.length()==0){Toast.makeText(this,"Save your first CV to see it here",Toast.LENGTH_SHORT).show();return;}
@@ -221,7 +278,8 @@ public final class NativeResumeActivity extends Activity {
         }
         preview.setText(b.toString());
         preview.setTextColor(colors[style]);
-        preview.setTextSize(style==2?15:14);
+        preview.setTextSize(style==2||style==7?16:style==9?13:14);
+        preview.setTypeface(null,style==4||style==5?android.graphics.Typeface.BOLD:android.graphics.Typeface.NORMAL);
     }
     private String value(int index,String fallback){
         String text=inputs[index].getText().toString().trim();
@@ -283,7 +341,8 @@ public final class NativeResumeActivity extends Activity {
             try(OutputStream stream=getContentResolver().openOutputStream(data.getData())){
                 if(stream==null)throw new IllegalStateException("No file output stream");
                 stream.write(pendingPdf);
-                status.setText("PDF saved to selected location.");
+                lastSavedPdf=data.getData();
+                status.setText("PDF saved. Tap Share PDF to send it to WhatsApp or email.");
                 Toast.makeText(this,"Resume PDF saved",Toast.LENGTH_LONG).show();
             }catch(Exception e){status.setText("PDF save failed: "+e.getMessage());}
         }else{status.setText("PDF save canceled.");}
