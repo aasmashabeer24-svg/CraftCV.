@@ -10,10 +10,10 @@
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
         android:supportsRtl="true">
-        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3517751367362331~2372180640" />
-        <activity android:name=".MainActivity" android:exported="true"
+        <activity android:name=".MainActivity" android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".NativeResumeActivity" android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
