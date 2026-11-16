@@ -23,8 +23,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -37,6 +37,8 @@ public final class NativeResumeActivity extends Activity {
     private static final String PREFS = "craftcv_native_resumes_v1";
     private static final String KEY_ITEMS = "resumes";
     private static final String KEY_CURRENT = "current";
+    private static final int CREATE_PDF = 411;
+    private byte[] pendingPdf;
     private final String[] fields = {"Full name", "Professional title", "Email", "Phone", "Location",
             "Professional summary", "Work experience", "Education", "Skills", "Projects"};
     private final String[] keys = {"name","role","email","phone","location","summary","experience","education","skills","projects"};
@@ -263,16 +265,29 @@ public final class NativeResumeActivity extends Activity {
         }
         pdf.finishPage(page);
         try {
-            File folder=getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-            if(folder==null)throw new IllegalStateException("Documents storage unavailable");
-            if(!folder.exists()&&!folder.mkdirs())throw new IllegalStateException("Cannot create documents folder");
-            String filename="CraftCV-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date())+".pdf";
-            File out=new File(folder,filename);
-            try(FileOutputStream stream=new FileOutputStream(out)){pdf.writeTo(stream);}
-            status.setText("PDF saved: "+filename+" (app documents)");
-            new AlertDialog.Builder(this).setTitle("PDF saved").setMessage("Saved to app documents. To share, open the Android file manager or use a compatible file-sharing feature in a later update.").setPositiveButton("OK",null).show();
-        }catch(Exception e){status.setText("PDF export failed: "+e.getMessage());}
+            ByteArrayOutputStream buffer=new ByteArrayOutputStream();
+            pdf.writeTo(buffer);
+            pendingPdf=buffer.toByteArray();
+            Intent save=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            save.addCategory(Intent.CATEGORY_OPENABLE);
+            save.setType("application/pdf");
+            save.putExtra(Intent.EXTRA_TITLE,"CraftCV-"+new SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(new Date())+".pdf");
+            startActivityForResult(save,CREATE_PDF);
+        }catch(Exception e){pendingPdf=null;status.setText("PDF export failed: "+e.getMessage());}
         finally {pdf.close();}
+    }
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode!=CREATE_PDF)return;
+        if(resultCode==RESULT_OK && data!=null && data.getData()!=null && pendingPdf!=null){
+            try(OutputStream stream=getContentResolver().openOutputStream(data.getData())){
+                if(stream==null)throw new IllegalStateException("No file output stream");
+                stream.write(pendingPdf);
+                status.setText("PDF saved to selected location.");
+                Toast.makeText(this,"Resume PDF saved",Toast.LENGTH_LONG).show();
+            }catch(Exception e){status.setText("PDF save failed: "+e.getMessage());}
+        }else{status.setText("PDF save canceled.");}
+        pendingPdf=null;
     }
     private String fit(String s,int max){return s.length()>max?s.substring(0,max-1)+"…":s;}
 }
