@@ -13,6 +13,8 @@
         <activity android:name=".MainActivity" android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".CoverLetterActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".NativeResumeActivity" android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
