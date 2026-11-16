@@ -98,11 +98,11 @@ public final class NativeResumeActivity extends Activity {
         content.setPadding(dp(18),dp(18),dp(18),dp(38));
         scroll.addView(content);
         TextView brand=label("CraftCV",29,Color.rgb(22,57,72));
-        brand.setTypeface(null,1);content.addView(brand);
+        brand.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(brand);
         TextView subtitle=label("NATIVE RESUME STUDIO  •  WORKS OFFLINE",10,Color.rgb(74,128,125));
         subtitle.setLetterSpacing(.12f);content.addView(subtitle);
         TextView welcome=label("Create something unforgettable.",23,Color.rgb(27,59,70));
-        welcome.setTypeface(null,1);welcome.setPadding(0,dp(25),0,dp(6));content.addView(welcome);
+        welcome.setTypeface(null,android.graphics.Typeface.BOLD);welcome.setPadding(0,dp(25),0,dp(6));content.addView(welcome);
         TextView intro=label("Your CVs stay on this phone. Export a PDF anytime, even without an internet connection.",13,Color.rgb(104,126,134));
         intro.setPadding(0,0,0,dp(14));content.addView(intro);
         LinearLayout commands=new LinearLayout(this);
@@ -112,7 +112,7 @@ public final class NativeResumeActivity extends Activity {
         addCommand(commands,"Save",this::save);
         addCommand(commands,"PDF",this::exportPDF);
         TextView choose=label("PICK YOUR DESIGN",11,Color.rgb(62,112,111));
-        choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,1);content.addView(choose);
+        choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(choose);
         LinearLayout themeRow=new LinearLayout(this);content.addView(themeRow);
         for(int i=0;i<themes.length;i++){
             final int selected=i;
@@ -121,7 +121,7 @@ public final class NativeResumeActivity extends Activity {
             p.setMargins(0,0,dp(5),0);themeRow.addView(button,p);
         }
         TextView title=label("YOUR DETAILS",11,Color.rgb(62,112,111));
-        title.setTypeface(null,1);title.setPadding(0,dp(25),0,dp(8));content.addView(title);
+        title.setTypeface(null,android.graphics.Typeface.BOLD);title.setPadding(0,dp(25),0,dp(8));content.addView(title);
         for(int i=0;i<keys.length;i++) {
             TextView fieldLabel=label(fields[i],12,Color.rgb(47,79,90));
             fieldLabel.setPadding(0,dp(13),0,0);content.addView(fieldLabel);
@@ -139,7 +139,7 @@ public final class NativeResumeActivity extends Activity {
         Button previewButton=action("Update live preview",this::updatePreview);
         content.addView(previewButton,new LinearLayout.LayoutParams(-1,dp(49)));
         TextView previewHeading=label("LIVE PREVIEW",11,Color.rgb(62,112,111));
-        previewHeading.setPadding(0,dp(22),0,dp(12));previewHeading.setTypeface(null,1);
+        previewHeading.setPadding(0,dp(22),0,dp(12));previewHeading.setTypeface(null,android.graphics.Typeface.BOLD);
         content.addView(previewHeading);
         preview=label("",14,Color.rgb(33,55,68));
         preview.setPadding(dp(20),dp(24),dp(20),dp(24));
