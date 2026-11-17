@@ -41,6 +41,8 @@ public final class ResumePreviewActivity extends Activity {
     private LinearLayout pages;
     private TextView info;
     private File previewFile;
+    private Button savePdfButton;
+    private Button sharePdfButton;
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
@@ -101,9 +103,11 @@ public final class ResumePreviewActivity extends Activity {
 
         LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(actions);
-        addAction(actions,"Save PDF",()->savePdf(false));
+        savePdfButton=addAction(actions,"Save PDF",()->savePdf(false));
         addAction(actions,"Word",this::saveWord);
-        addAction(actions,"Share",()->savePdf(true));
+        sharePdfButton=addAction(actions,"Share",()->savePdf(true));
+        savePdfButton.setEnabled(false);
+        sharePdfButton.setEnabled(false);
 
         info=new TextView(this);
         info.setText("A4 document preview • Works offline");
@@ -121,11 +125,12 @@ public final class ResumePreviewActivity extends Activity {
         pages.setPadding(dp(12),dp(5),dp(12),dp(25));
         scroller.addView(pages);
     }
-    private void addAction(LinearLayout row,String name,Runnable task){
+    private Button addAction(LinearLayout row,String name,Runnable task){
         Button b=button(name,task);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(47),1);
         p.setMargins(dp(2),0,dp(2),0);
         row.addView(b,p);
+        return b;
     }
     private void renderDocument(){
         if(info!=null)info.setText("Preparing your A4 CV...");
@@ -184,6 +189,8 @@ public final class ResumePreviewActivity extends Activity {
                 pages.removeAllViews();
                 if(readyPdf!=null){
                     pdfBytes=readyPdf;
+                    savePdfButton.setEnabled(true);
+                    sharePdfButton.setEnabled(true);
                 }
                 for(int i=0;i<bitmaps.size();i++){
                     Bitmap bitmap=bitmaps.get(i);
