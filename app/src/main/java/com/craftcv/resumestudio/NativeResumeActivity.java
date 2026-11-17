@@ -270,6 +270,7 @@ public final class NativeResumeActivity extends Activity {
             }
             if(bounds.outWidth<1 || bounds.outHeight<1)throw new IllegalStateException("Invalid image");
             BitmapFactory.Options opts=new BitmapFactory.Options();
+            opts.inSampleSize=1;
             int largest=Math.max(bounds.outWidth,bounds.outHeight);
             while(largest/opts.inSampleSize>1150)opts.inSampleSize*=2;
             Bitmap bitmap;
