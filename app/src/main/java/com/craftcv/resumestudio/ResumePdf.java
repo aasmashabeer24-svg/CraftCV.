@@ -32,6 +32,7 @@ public final class ResumePdf {
         int count = 0;
         final int accent;
         final int theme;
+        boolean centerHeader = false;
 
         Writer(int theme) {
             this.theme=Math.max(0,Math.min(ACCENTS.length-1,theme));
@@ -47,6 +48,14 @@ public final class ResumePdf {
                 paint.setColor(accent);
                 canvas.drawRect(0,0,595,13,paint);
             }
+            if(theme==1 || theme==6){
+                paint.setColor(accent);
+                canvas.drawRect(0,0,13,842,paint);
+            }
+            if(theme==8){
+                paint.setColor(0xFF3E5068);
+                canvas.drawRect(45,28,550,31,paint);
+            }
         }
         void ensure(int height) {
             if(y+height>787)nextPage();
@@ -54,12 +63,17 @@ public final class ResumePdf {
         void setFont(int size, boolean bold, int color) {
             paint.setColor(color);
             paint.setTextSize(size);
-            paint.setTypeface(Typeface.create((theme==0||theme==5||theme==10)?"serif":"sans-serif",
+            paint.setTypeface(Typeface.create(
+                    (theme==0||theme==5||theme==8||theme==10)?"serif":
+                    (theme==11?"monospace":"sans-serif"),
                     bold?Typeface.BOLD:Typeface.NORMAL));
         }
         void line(String value, int spacing) {
             ensure(spacing);
-            if(!value.isEmpty())canvas.drawText(value,45,y,paint);
+            if(!value.isEmpty()){
+                float x=centerHeader?Math.max(45,(595-paint.measureText(value))/2):45;
+                canvas.drawText(value,x,y,paint);
+            }
             y+=spacing;
         }
         void wrap(String value,int lineHeight){
@@ -89,8 +103,10 @@ public final class ResumePdf {
             y+=15;
             setFont(theme==9?11:12,true,theme==11?Color.BLACK:accent);
             line(title,19);
-            paint.setStrokeWidth(0.7f);paint.setColor(0xFFDCE5E7);
+            paint.setStrokeWidth(theme==8?1.3f:0.7f);
+            paint.setColor(theme==8?accent:0xFFDCE5E7);
             canvas.drawLine(45,y-5,550,y-5,paint);
+            if(theme==8)canvas.drawLine(45,y-2,550,y-2,paint);
             y+=7;
         }
         byte[] close() throws Exception {
@@ -103,26 +119,71 @@ public final class ResumePdf {
 
     public static byte[] generate(JSONObject data,int style) throws Exception {
         Writer w=new Writer(style);
-        w.setFont(style==7?26:23,true,w.accent);
-        w.wrap(data.optString("name","").trim().isEmpty()?"YOUR NAME":data.optString("name",""),29);
-        w.y+=3;
-        w.setFont(13,false,w.accent);
+        int selected=w.theme;
+        String applicant=data.optString("name","").trim();
+        if(applicant.isEmpty())applicant="YOUR NAME";
         String role=data.optString("role","").trim();
-        if(!role.isEmpty())w.wrap(role,19);
-        w.y+=5;
-        w.setFont(10,false,Color.DKGRAY);
-        String contact=join(data.optString("email",""),data.optString("phone",""),data.optString("location",""));
-        if(!contact.isEmpty())w.wrap(contact,16);
-        w.y+=12;
-        w.ensure(15);
-        w.paint.setColor(w.accent);w.paint.setStrokeWidth(1.5f);
-        w.canvas.drawLine(45,w.y,550,w.y,w.paint);w.y+=15;
+        String contact=join(
+            data.optString("email",""),
+            data.optString("phone",""),
+            data.optString("location","")
+        );
+
+        // Distinct document families rather than twelve recolours of the same header.
+        boolean hero=(selected==2 || selected==7);
+        boolean softPanel=(selected==4 || selected==10);
+        w.centerHeader=(selected==5 || selected==8 || selected==10);
+        if(hero){
+            w.paint.setColor(w.accent);
+            w.canvas.drawRect(0,0,595,223,w.paint);
+            w.y=65;
+        }else if(softPanel){
+            w.paint.setColor(selected==10?0xFFF8F0E9:0xFFE9F1F3);
+            w.canvas.drawRoundRect(39,39,556,178,11,11,w.paint);
+            w.y=66;
+        }else if(selected==3 || selected==11){
+            w.y=57;
+        }else{
+            w.y=65;
+        }
+
+        int titleColor=hero?Color.WHITE:(selected==11?Color.BLACK:w.accent);
+        int roleColor=hero?0xFFF0F6F5:(selected==11?Color.BLACK:w.accent);
+        int contactColor=hero?0xFFE1ECEC:Color.DKGRAY;
+        w.setFont(selected==7?30:selected==10?27:selected==9?20:24,true,titleColor);
+        w.wrap(applicant,selected==9?25:31);
+        w.y+=3;
+        if(!role.isEmpty()){
+            w.setFont(selected==9?11:13,false,roleColor);
+            w.wrap(role,selected==9?17:20);
+        }
+        w.y+=6;
+        if(!contact.isEmpty()){
+            w.setFont(selected==9?9:10,false,contactColor);
+            w.wrap(contact,selected==9?14:17);
+        }
+        w.centerHeader=false;
+
+        if(hero){
+            w.y=Math.max(w.y+12,244);
+        }else if(softPanel){
+            w.y=Math.max(w.y+12,199);
+        }else {
+            w.y+=15;
+            w.ensure(14);
+            w.paint.setColor(w.accent);
+            w.paint.setStrokeWidth(selected==8?2f:1.2f);
+            w.canvas.drawLine(45,w.y,550,w.y,w.paint);
+            if(selected==8)w.canvas.drawLine(45,w.y+5,550,w.y+5,w.paint);
+            w.y+=selected==8?22:15;
+        }
+
         for(int i=0;i<KEYS.length;i++){
             String text=data.optString(KEYS[i],"").trim();
             if(text.isEmpty())continue;
             w.heading(HEADINGS[i]);
-            w.setFont(style==9?10:11,false,0xFF353F44);
-            w.wrap(text,style==9?15:17);
+            w.setFont(selected==9?10:11,false,0xFF353F44);
+            w.wrap(text,selected==9?15:17);
         }
         return w.close();
     }
