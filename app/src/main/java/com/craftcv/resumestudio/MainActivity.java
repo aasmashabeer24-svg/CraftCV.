@@ -95,7 +95,9 @@ public final class MainActivity extends Activity {
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 this::navigateBackSafely);
         }
-        webView.loadUrl(HOME);
+        String start=getIntent().getStringExtra(EXTRA_START_PAGE);
+        String route="cloud".equals(start)?"#cloud":"ai".equals(start)?"#ai":"";
+        webView.loadUrl(HOME+route);
     }
     private int dp(int value){return Math.round(getResources().getDisplayMetrics().density*value);}
     private void addAction(LinearLayout bar,String label,View.OnClickListener action) {
