@@ -2,6 +2,15 @@ package com.craftcv.resumestudio;
 
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
+import android.util.Base64;
+import android.os.Handler;
+import android.os.Looper;
+import android.content.ClipData;
+import java.io.OutputStream;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -33,6 +42,13 @@ public final class MainActivity extends Activity {
     private static final String HOME = "https://craftcv-hees13.v2.appdeploy.ai/";
     private static final String HOST = "craftcv-hees13.v2.appdeploy.ai";
     private static final int PICK_FILE = 301;
+    private static final int SAVE_WEB_DOWNLOAD = 302;
+    private static final int MAX_BLOB_BYTES = 8 * 1024 * 1024;
+    private byte[] pendingWebFile;
+    private String pendingWebMime;
+    private String pendingWebName;
+    private boolean blobInProgress=false;
+    private final Handler handler=new Handler(Looper.getMainLooper());
     private WebView webView;
     private LinearLayout root;
     private TextView message;
@@ -59,8 +75,8 @@ public final class MainActivity extends Activity {
         root.addView(toolbar,new LinearLayout.LayoutParams(-1,dp(50)));
         addAction(toolbar,"‹",v->finish());
         addAction(toolbar,"Online Studio",v->webView.loadUrl(HOME));
+        addAction(toolbar,"Save PDF",v->printWebResume());
         addAction(toolbar,"Refresh",v->webView.reload());
-        addAction(toolbar,"Privacy",v->openExternal(HOME+"privacy.html"));
         message=new TextView(this);
         message.setTextColor(Color.DKGRAY);
         message.setPadding(dp(18),dp(13),dp(18),dp(13));
@@ -97,6 +113,104 @@ public final class MainActivity extends Activity {
         try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
         catch(ActivityNotFoundException error){Toast.makeText(this,"No browser found",Toast.LENGTH_LONG).show();}
     }
+    private void printWebResume(){
+        if(webView==null || !trusted(Uri.parse(webView.getUrl()))){
+            Toast.makeText(this,"Open CraftCV first before printing",Toast.LENGTH_LONG).show();return;
+        }
+        try{
+            PrintManager manager=(PrintManager)getSystemService(Context.PRINT_SERVICE);
+            if(manager==null)throw new IllegalStateException("Print service unavailable");
+            manager.print("CraftCV Resume",webView.createPrintDocumentAdapter("CraftCV Resume"),
+                new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setColorMode(PrintAttributes.COLOR_MODE_COLOR).build());
+        }catch(Exception e){
+            Toast.makeText(this,"Could not open Save as PDF. Use native View CV instead.",Toast.LENGTH_LONG).show();
+        }
+    }
+    private void installDownloadAndPrintHooks(){
+        if(webView==null || !trusted(Uri.parse(webView.getUrl())))return;
+        String script="(function(){"
+            +"window.print=function(){window.location.href='craftcv-print://open';};"
+            +"if(window.__craftcvHooksInstalled)return;window.__craftcvHooksInstalled=true;"
+            +"document.addEventListener('click',function(ev){"
+            +"var a=ev.target.closest&&ev.target.closest('a[download]');"
+            +"if(a&&a.href&&a.href.indexOf('blob:')===0){"
+            +"ev.preventDefault();ev.stopPropagation();"
+            +"window.location.href='craftcv-download://save?url='+encodeURIComponent(a.href)+'&name='+encodeURIComponent(a.getAttribute('download')||'');"
+            +"}},true);"
+            +"})();";
+        webView.evaluateJavascript(script,null);
+    }
+    private void downloadBlob(String blobUrl,String filename,String mime){
+        if(blobInProgress){Toast.makeText(this,"A download is already being prepared",Toast.LENGTH_SHORT).show();return;}
+        if(webView==null || !trusted(Uri.parse(webView.getUrl())) || !blobUrl.startsWith("blob:")){
+            Toast.makeText(this,"Download blocked: unexpected source",Toast.LENGTH_LONG).show();return;
+        }
+        blobInProgress=true;
+        pendingWebName=(filename==null||filename.trim().isEmpty())?"CraftCV-Resume.docx":filename.replaceAll("[^a-zA-Z0-9._-]","_");
+        if(pendingWebName.length()>100)pendingWebName=pendingWebName.substring(0,100);
+        pendingWebMime=(mime==null||mime.isEmpty()||mime.equals("application/octet-stream"))
+            ?"application/vnd.openxmlformats-officedocument.wordprocessingml.document":mime;
+        String code="(function(){window.__craftcvBlobResult='WAIT';"
+            +"fetch("+JSONObject.quote(blobUrl)+").then(function(r){return r.blob();})"
+            +".then(function(blob){"
+            +"if(blob.size>"+MAX_BLOB_BYTES+")throw Error('File larger than 8 MB');"
+            +"var reader=new FileReader();"
+            +"reader.onload=function(){window.__craftcvBlobResult=String(reader.result);};"
+            +"reader.onerror=function(){window.__craftcvBlobResult='ERROR:Cannot read document';};"
+            +"reader.readAsDataURL(blob);"
+            +"})"
+            +".catch(function(e){window.__craftcvBlobResult='ERROR:'+String(e.message||e);});"
+            +"})();";
+        webView.evaluateJavascript(code,null);
+        handler.postDelayed(()->pollBlobResult(0),280);
+    }
+    private void pollBlobResult(int attempt){
+        if(!blobInProgress || webView==null)return;
+        if(attempt>=25){
+            blobInProgress=false;
+            Toast.makeText(this,"Download timed out. Try again.",Toast.LENGTH_LONG).show();
+            return;
+        }
+        webView.evaluateJavascript("window.__craftcvBlobResult || 'WAIT'",value->{
+            String decoded="WAIT";
+            try{
+                Object parsed=new JSONTokener(value).nextValue();
+                if(parsed!=null)decoded=String.valueOf(parsed);
+            }catch(Exception ignored){}
+            if(decoded.equals("WAIT") || decoded.equals("null")){
+                handler.postDelayed(()->pollBlobResult(attempt+1),280);
+                return;
+            }
+            if(decoded.startsWith("ERROR:")){
+                blobInProgress=false;
+                Toast.makeText(this,decoded,Toast.LENGTH_LONG).show();
+                return;
+            }
+            int separator=decoded.indexOf(";base64,");
+            if(!decoded.startsWith("data:") || separator<0){
+                blobInProgress=false;
+                Toast.makeText(this,"The document could not be decoded",Toast.LENGTH_LONG).show();
+                return;
+            }
+            try{
+                String raw=decoded.substring(separator+8);
+                if(raw.length()>MAX_BLOB_BYTES*2)throw new IllegalArgumentException("Too large");
+                pendingWebFile=Base64.decode(raw,Base64.DEFAULT);
+                if(pendingWebFile.length>MAX_BLOB_BYTES)throw new IllegalArgumentException("Too large");
+                blobInProgress=false;
+                Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType(pendingWebMime);
+                intent.putExtra(Intent.EXTRA_TITLE,pendingWebName);
+                startActivityForResult(intent,SAVE_WEB_DOWNLOAD);
+            }catch(Exception e){
+                blobInProgress=false;pendingWebFile=null;
+                Toast.makeText(this,"Could not prepare the file: "+e.getMessage(),Toast.LENGTH_LONG).show();
+            }
+            webView.evaluateJavascript("window.__craftcvBlobResult = null",null);
+        });
+    }
     private void configure() {
         WebSettings settings=webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -113,6 +227,17 @@ public final class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
+                if("craftcv-print".equalsIgnoreCase(uri.getScheme())){
+                    view.post(()->printWebResume());return true;
+                }
+                if("craftcv-download".equalsIgnoreCase(uri.getScheme())){
+                    final String requested=uri.getQueryParameter("url");
+                    final String fileName=uri.getQueryParameter("name");
+                    view.post(()->downloadBlob(requested==null?"":requested,fileName,
+                        fileName!=null&&fileName.endsWith(".pdf")?"application/pdf":
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+                    return true;
+                }
                 if(trusted(uri))return false;
                 if("https".equalsIgnoreCase(uri.getScheme()))openExternal(uri.toString());
                 return true;
@@ -124,7 +249,10 @@ public final class MainActivity extends Activity {
                 }
             }
             @Override public void onPageFinished(WebView view,String url) {
-                if(trusted(Uri.parse(url)))message.setVisibility(View.GONE);
+                if(trusted(Uri.parse(url))){
+                    message.setVisibility(View.GONE);
+                    installDownloadAndPrintHooks();
+                }
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
@@ -142,6 +270,12 @@ public final class MainActivity extends Activity {
         });
         webView.setDownloadListener((url,agent,disposition,mime,length)->{
             Uri uri=Uri.parse(url);
+            if("blob".equalsIgnoreCase(uri.getScheme())){
+                String suggested=URLUtil.guessFileName(url,disposition,mime);
+                if(suggested==null||!suggested.contains("."))suggested="CraftCV-Resume.docx";
+                downloadBlob(url,suggested,mime);
+                return;
+            }
             if(!trusted(uri)){openExternal(url);return;}
             try {
                 DownloadManager.Request request=new DownloadManager.Request(uri);
@@ -160,6 +294,20 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
+        if(request==SAVE_WEB_DOWNLOAD){
+            if(result==RESULT_OK&&data!=null&&data.getData()!=null&&pendingWebFile!=null){
+                try(OutputStream output=getContentResolver().openOutputStream(data.getData())){
+                    if(output==null)throw new IllegalStateException("File destination unavailable");
+                    output.write(pendingWebFile);
+                    output.flush();
+                    Toast.makeText(this,"CraftCV file saved successfully",Toast.LENGTH_LONG).show();
+                }catch(Exception e){
+                    Toast.makeText(this,"File save failed: "+e.getMessage(),Toast.LENGTH_LONG).show();
+                }
+            }
+            pendingWebFile=null;
+            return;
+        }
         if(request==PICK_FILE&&pendingFiles!=null){
             pendingFiles.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));
             pendingFiles=null;
@@ -172,6 +320,7 @@ public final class MainActivity extends Activity {
         else super.onBackPressed();
     }
     @Override protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
         if(webView!=null){root.removeView(webView);webView.destroy();webView=null;}
         super.onDestroy();
     }
