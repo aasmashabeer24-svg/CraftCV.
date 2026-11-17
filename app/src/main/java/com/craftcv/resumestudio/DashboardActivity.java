@@ -18,7 +18,7 @@ import org.json.JSONObject;
 
 /**
  * Simple, native offline dashboard. Each major workflow has its own screen.
- * No ads, browser requirement, sign-in wall, or sensitive-data upload.
+ * No sign-in wall or sensitive CV upload; optional consent-gated ad below content.
  */
 public final class DashboardActivity extends Activity {
     private static final int INK = 0xFF183746;
@@ -26,6 +26,8 @@ public final class DashboardActivity extends Activity {
     private static final int TEAL = 0xFF26776A;
     private static final int BG = 0xFFF5F8F9;
     private static final int BORDER = 0xFFE0E9EB;
+    private CraftCvAds ads;
+    private boolean firstResume=true;
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
@@ -159,9 +161,22 @@ public final class DashboardActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
-        build();
+        // Android automatically calls onResume after onCreate. Only rebuild on
+        // returning from editing, so the consent form is never shown twice.
+        if(firstResume)firstResume=false;
+        else build();
+        if(ads!=null)ads.resume();
+    }
+    @Override protected void onPause() {
+        if(ads!=null)ads.pause();
+        super.onPause();
+    }
+    @Override protected void onDestroy() {
+        if(ads!=null){ads.destroy();ads=null;}
+        super.onDestroy();
     }
     private void build() {
+        if(ads!=null){ads.destroy();ads=null;}
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(BG);
@@ -252,5 +267,10 @@ public final class DashboardActivity extends Activity {
         LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(-1, dp(47));
         openParams.topMargin = dp(12);
         online.addView(open, openParams);
+
+        // Single, clearly labeled, adaptive banner at the bottom of Home only.
+        // Never show ads beside text fields, download controls or CV documents.
+        ads=new CraftCvAds(this,page);
+        ads.start();
     }
 }
