@@ -57,6 +57,10 @@ public final class ResumeTemplatesActivity extends Activity {
                 JSONObject row=all.optJSONObject(i);
                 if(row!=null && id.equals(row.optString("id")))return row.optInt("style",value);
             }
+            if(all.length()>0){
+                JSONObject first=all.optJSONObject(0);
+                if(first!=null)return first.optInt("style",value);
+            }
         }catch(Exception ignored){}
         return value;
     }
@@ -66,9 +70,22 @@ public final class ResumeTemplatesActivity extends Activity {
             SharedPreferences.Editor editor=prefs().edit().putInt("default_style",index);
             JSONArray all=new JSONArray(prefs().getString("resumes","[]"));
             String wanted=prefs().getString("current","");
+            boolean applied=false;
             for(int i=0;i<all.length();i++){
                 JSONObject row=all.optJSONObject(i);
-                if(row!=null && wanted.equals(row.optString("id")))row.put("style",index);
+                if(row!=null && wanted.equals(row.optString("id"))){
+                    row.put("style",index);
+                    applied=true;
+                    break;
+                }
+            }
+            // Older installs can have a stale selected ID. Apply to the actual saved CV.
+            if(!applied && all.length()>0){
+                JSONObject fallback=all.optJSONObject(0);
+                if(fallback!=null){
+                    fallback.put("style",index);
+                    editor.putString("current",fallback.optString("id"));
+                }
             }
             editor.putString("resumes",all.toString()).apply();
             Toast.makeText(this,STYLES[index]+" design applied",Toast.LENGTH_SHORT).show();
