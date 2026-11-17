@@ -91,10 +91,7 @@ public final class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                () -> {
-                    if (webView != null && webView.canGoBack()) webView.goBack();
-                    else finish();
-                });
+                this::navigateBackSafely);
         }
         webView.loadUrl(HOME);
     }
@@ -381,9 +378,7 @@ public final class MainActivity extends Activity {
             pendingFiles=null;
         }
     }
-    @SuppressWarnings("deprecation")
-    @android.annotation.SuppressLint("GestureBackNavigation")
-    @Override public void onBackPressed(){
+    private void navigateBackSafely(){
         if(webView!=null&&webView.canGoBack()){
             android.webkit.WebBackForwardList history=webView.copyBackForwardList();
             int previous=history.getCurrentIndex()-1;
@@ -395,8 +390,13 @@ public final class MainActivity extends Activity {
                 }
             }
         }
-        // Never navigate back into a blank about:blank, blob, or custom-scheme WebView history entry.
+        // Never navigate to about:blank, blob, or a custom-scheme URL.
         finish();
+    }
+    @SuppressWarnings("deprecation")
+    @android.annotation.SuppressLint("GestureBackNavigation")
+    @Override public void onBackPressed(){
+        navigateBackSafely();
     }
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
