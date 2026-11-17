@@ -368,6 +368,7 @@ public final class NativeResumeActivity extends Activity {
             .setNegativeButton("Cancel",null)
             .setPositiveButton("Create",(dialog,which)->{
                 saveHandler.removeCallbacks(savePending);
+                save(); // Preserve the previous resume before switching to a fresh starter.
                 createNew(false);
                 inputs[1].setText("Student / Fresh Graduate");
                 inputs[6].setText("");
