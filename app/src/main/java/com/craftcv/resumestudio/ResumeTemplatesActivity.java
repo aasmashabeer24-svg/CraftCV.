@@ -29,7 +29,7 @@ public final class ResumeTemplatesActivity extends Activity {
         0xFF194C5D,0xFF3C584D,0xFF774960,0xFF303D48,0xFF274054,0xFF354458,
         0xFF417C69,0xFFB05241,0xFF3E5068,0xFF317071,0xFF906D59,0xFF252525
     };
-    private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density*n);}
+    private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private SharedPreferences prefs(){return getSharedPreferences(PREFS,MODE_PRIVATE);}
     private GradientDrawable background(int color,int border) {
         GradientDrawable d=new GradientDrawable();
