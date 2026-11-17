@@ -7,6 +7,13 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.widget.ImageView;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Bundle;
@@ -39,6 +46,7 @@ public final class NativeResumeActivity extends Activity {
     private static final String KEY_CURRENT = "current";
     private static final int CREATE_PDF = 411;
     private static final int CREATE_DOCX = 412;
+    private static final int CHOOSE_PHOTO = 413;
     private byte[] pendingDocx;
     private byte[] pendingPdf;
     private Uri lastSavedPdf;
@@ -50,6 +58,9 @@ public final class NativeResumeActivity extends Activity {
     private final String[] themes = {"Editorial","Modern","Creative","Minimal","Executive","Classic","Fresh","Bold","Academic","Compact","Elegant","Monochrome"};
     private int style = 0;
     private String currentId = "";
+    private String photoPath = "";
+    private ImageView photoPreview;
+    private TextView photoStatus;
     private LinearLayout content;
     private TextView preview;
     private TextView status;
@@ -183,6 +194,128 @@ public final class NativeResumeActivity extends Activity {
             }
         });
     }
+
+    private void addPhotoChooser(LinearLayout panel){
+        LinearLayout card=new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14),dp(14),dp(14),dp(14));
+        card.setBackground(background(Color.WHITE,14,0xFFE1EAED));
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
+        p.bottomMargin=dp(13);
+        panel.addView(card,p);
+        card.addView(heading("Profile photo (optional)",15,0xFF325766,true));
+        photoStatus=heading("Add a photo for a photo-style CV; ATS resumes can remain photo-free.",12,0xFF78909B,false);
+        LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);
+        sp.topMargin=dp(6);
+        card.addView(photoStatus,sp);
+        photoPreview=new ImageView(this);
+        photoPreview.setAdjustViewBounds(true);
+        photoPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        photoPreview.setVisibility(View.GONE);
+        LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(84),dp(84));
+        pp.topMargin=dp(10);
+        card.addView(photoPreview,pp);
+        LinearLayout actions=new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(47));
+        ap.topMargin=dp(10);
+        card.addView(actions,ap);
+        actions.addView(toolbarButton("Choose photo",this::choosePhoto,false),new LinearLayout.LayoutParams(0,dp(47),1));
+        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(47),1);
+        rp.leftMargin=dp(8);
+        actions.addView(toolbarButton("Remove",()->{
+            photoPath="";
+            refreshPhoto();
+            save();
+        },false),rp);
+    }
+    private void choosePhoto(){
+        Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        try{
+            startActivityForResult(Intent.createChooser(intent,"Choose resume photo"),CHOOSE_PHOTO);
+        }catch(Exception error){
+            Toast.makeText(this,"No photo picker is installed",Toast.LENGTH_LONG).show();
+        }
+    }
+    private void refreshPhoto(){
+        if(photoStatus==null || photoPreview==null)return;
+        File file=photoPath.isEmpty()?null:new File(photoPath);
+        if(file==null || !file.isFile()){
+            photoStatus.setText("No photo selected. Your CV works without one.");
+            photoPreview.setImageDrawable(null);
+            photoPreview.setVisibility(View.GONE);
+            return;
+        }
+        BitmapFactory.Options options=new BitmapFactory.Options();
+        options.inSampleSize=2;
+        Bitmap bitmap=BitmapFactory.decodeFile(photoPath,options);
+        if(bitmap==null){
+            photoStatus.setText("Photo unavailable. Choose another.");
+            photoPreview.setVisibility(View.GONE);
+            return;
+        }
+        photoPreview.setImageBitmap(bitmap);
+        photoPreview.setVisibility(View.VISIBLE);
+        photoStatus.setText("Photo is saved privately on this phone.");
+    }
+    private void importPhoto(Uri imageUri){
+        try{
+            BitmapFactory.Options bounds=new BitmapFactory.Options();
+            bounds.inJustDecodeBounds=true;
+            try(InputStream input=getContentResolver().openInputStream(imageUri)){
+                if(input==null)throw new IllegalStateException("Image cannot be opened");
+                BitmapFactory.decodeStream(input,null,bounds);
+            }
+            if(bounds.outWidth<1 || bounds.outHeight<1)throw new IllegalStateException("Invalid image");
+            BitmapFactory.Options opts=new BitmapFactory.Options();
+            int largest=Math.max(bounds.outWidth,bounds.outHeight);
+            while(largest/opts.inSampleSize>1150)opts.inSampleSize*=2;
+            Bitmap bitmap;
+            try(InputStream input=getContentResolver().openInputStream(imageUri)){
+                bitmap=BitmapFactory.decodeStream(input,null,opts);
+            }
+            if(bitmap==null)throw new IllegalStateException("Image could not be decoded");
+            int orientation=1;
+            try(InputStream input=getContentResolver().openInputStream(imageUri)){
+                if(input!=null){
+                    android.media.ExifInterface exif=new android.media.ExifInterface(input);
+                    orientation=exif.getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION,1);
+                }
+            }catch(Exception ignored){}
+            int degrees=orientation==6?90:orientation==3?180:orientation==8?270:0;
+            if(degrees!=0){
+                Matrix matrix=new Matrix();
+                matrix.postRotate(degrees);
+                Bitmap rotated=Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);
+                if(rotated!=bitmap)bitmap.recycle();
+                bitmap=rotated;
+            }
+            int width=bitmap.getWidth(),height=bitmap.getHeight();
+            float ratio=Math.min(1f,720f/Math.max(width,height));
+            if(ratio<1f){
+                Bitmap scaled=Bitmap.createScaledBitmap(bitmap,Math.round(width*ratio),Math.round(height*ratio),true);
+                if(scaled!=bitmap)bitmap.recycle();
+                bitmap=scaled;
+            }
+            File directory=new File(getFilesDir(),"resume-photos");
+            if(!directory.exists() && !directory.mkdirs())throw new IllegalStateException("Photo storage unavailable");
+            File file=new File(directory,"photo-"+System.currentTimeMillis()+".jpg");
+            try(FileOutputStream output=new FileOutputStream(file)){
+                if(!bitmap.compress(Bitmap.CompressFormat.JPEG,86,output))throw new IllegalStateException("Photo conversion failed");
+            }
+            bitmap.recycle();
+            photoPath=file.getAbsolutePath();
+            refreshPhoto();
+            save();
+            Toast.makeText(this,"Photo added to your CV",Toast.LENGTH_SHORT).show();
+        }catch(Exception error){
+            Toast.makeText(this,"Photo import failed: "+error.getMessage(),Toast.LENGTH_LONG).show();
+        }catch(OutOfMemoryError memory){
+            Toast.makeText(this,"Image too large. Choose a smaller photo.",Toast.LENGTH_LONG).show();
+        }
+    }
     private void showStep(int next){
         activeStep=Math.max(0,Math.min(3,next));
         for(int i=0;i<stepPanels.length;i++){
@@ -271,6 +404,7 @@ public final class NativeResumeActivity extends Activity {
 
         addSectionHeading(stepPanels[0],"Personal details","First, tell us how employers can contact you.");
         for(int i=0;i<=4;i++)addField(stepPanels[0],i);
+        addPhotoChooser(stepPanels[0]);
 
         TextView helper=heading("Applying for your first job? Start as a fresher — you do not need to invent work experience.",12,0xFF587A83,false);
         helper.setPadding(dp(6),dp(6),dp(6),dp(12));
@@ -322,6 +456,7 @@ public final class NativeResumeActivity extends Activity {
         JSONObject item=new JSONObject();
         try {
             item.put("id",currentId);item.put("style",style);
+            item.put("photoPath",photoPath);
             for(int i=0;i<keys.length;i++)item.put(keys[i],inputs[i].getText().toString());
         } catch(Exception ignored){}
         return item;
@@ -329,6 +464,8 @@ public final class NativeResumeActivity extends Activity {
     private void load(JSONObject item) {
         loading=true;
         currentId=item.optString("id");
+        photoPath=item.optString("photoPath","");
+        refreshPhoto();
         style=Math.max(0,Math.min(themes.length-1,item.optInt("style",0)));
         for(int i=0;i<keys.length;i++){
             String loaded=item.optString(keys[i],"");
@@ -346,6 +483,8 @@ public final class NativeResumeActivity extends Activity {
         saveHandler.removeCallbacks(savePending);
         if(confirm){new AlertDialog.Builder(this).setMessage("Start a new resume? Unsaved changes will be lost.").setPositiveButton("Create",(d,w)->createNew(false)).setNegativeButton("Cancel",null).show();return;}
         currentId="native-"+System.currentTimeMillis();
+        photoPath="";
+        refreshPhoto();
         loading=true;
         style=preferences().getInt("default_style",0);
         for(EditText input:inputs)input.setText("");
@@ -599,6 +738,10 @@ public final class NativeResumeActivity extends Activity {
     }
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==CHOOSE_PHOTO){
+            if(resultCode==RESULT_OK && data!=null && data.getData()!=null)importPhoto(data.getData());
+            return;
+        }
         if(requestCode==CREATE_DOCX){
             if(resultCode==RESULT_OK && data!=null && data.getData()!=null && pendingDocx!=null){
                 try(OutputStream out=getContentResolver().openOutputStream(data.getData())){
