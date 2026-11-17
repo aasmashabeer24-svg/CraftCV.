@@ -74,7 +74,7 @@ public final class MainActivity extends Activity {
         toolbar.setBackgroundColor(Color.rgb(18,56,70));
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         root.addView(toolbar,new LinearLayout.LayoutParams(-1,dp(50)));
-        addAction(toolbar,"‹",v->finish());
+        addAction(toolbar,"‹",v->navigateBackSafely());
         addAction(toolbar,"Online Studio",v->webView.loadUrl(HOME));
         addAction(toolbar,"Save PDF",v->printWebResume());
         addAction(toolbar,"Refresh",v->{if(webView!=null)webView.reload();else recreate();});
