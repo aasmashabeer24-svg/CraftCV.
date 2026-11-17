@@ -35,8 +35,8 @@ android {
             // come from the owner's AdMob account during the signed release build.
             def liveAppId = System.getenv('CRAFTCV_ADMOB_APP_ID') ?: ''
             def liveBannerId = System.getenv('CRAFTCV_ADMOB_BANNER_UNIT_ID') ?: ''
-            def configured = liveAppId ==~ /ca-app-pub-[0-9]{16}~[0-9]{10}/ &&
-                liveBannerId ==~ /ca-app-pub-[0-9]{16}\\/[0-9]{10}/ &&
+            def configured = liveAppId.matches('ca-app-pub-[0-9]{16}~[0-9]{10}') &&
+                liveBannerId.matches('ca-app-pub-[0-9]{16}/[0-9]{10}') &&
                 !liveAppId.startsWith('ca-app-pub-3940256099942544') &&
                 !liveBannerId.startsWith('ca-app-pub-3940256099942544')
             manifestPlaceholders = [craftcvAdmobAppId:configured?liveAppId:'ca-app-pub-3940256099942544~3347511713']
