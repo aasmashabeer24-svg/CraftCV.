@@ -205,6 +205,7 @@ public final class NativeResumeActivity extends Activity {
         if(continueStepButton!=null){
             continueStepButton.setText(activeStep==3?"Finish & View CV  →":"Continue  →");
         }
+        if(selectedDesign!=null)selectedDesign.setText("Current design: "+themes[style]);
         if(formScroll!=null)formScroll.post(()->formScroll.scrollTo(0,0));
     }
     private void forward(){
@@ -252,6 +253,9 @@ public final class NativeResumeActivity extends Activity {
         header.addView(progressCaption,pc);
         progressTrack=new LinearLayout(this);progressTrack.setOrientation(LinearLayout.HORIZONTAL);
         header.addView(progressTrack,new LinearLayout.LayoutParams(-1,dp(6)));
+        selectedDesign=heading("Current design: "+themes[style],11,0xFF668A8B,false);
+        selectedDesign.setPadding(0,dp(9),0,0);
+        header.addView(selectedDesign);
 
         formScroll=new ScrollView(this);formScroll.setFillViewport(true);
         root.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -335,6 +339,7 @@ public final class NativeResumeActivity extends Activity {
             inputs[i].setText(loaded);
         }
         loading=false;updatePreview();
+        if(selectedDesign!=null)selectedDesign.setText("Current design: "+themes[style]);
         preferences().edit().putString(KEY_CURRENT,currentId).apply();
     }
     private void createNew(boolean confirm) {
@@ -585,6 +590,7 @@ public final class NativeResumeActivity extends Activity {
                 }
             }
         }catch(Exception ignored){}
+        if(selectedDesign!=null)selectedDesign.setText("Current design: "+themes[style]);
     }
     @Override protected void onPause(){
         saveHandler.removeCallbacks(savePending);
