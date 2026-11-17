@@ -224,7 +224,16 @@ public final class DashboardActivity extends Activity {
                 startActivity(new Intent(this, ResumeTemplatesActivity.class))));
         addPair(page,
             tile("✎", "Cover Letters", "Write a matching job letter", this::launchCoverLetter),
-            tile("▣", "Finished CV", "Preview, PDF, Word & share", this::launchPreview));
+            tile("▣", "Finished CV", "Preview the A4 document", this::launchPreview));
+        addPair(page,
+            tile("⬇", "PDF & Word", "Save, open and share CV files", this::launchPreview),
+            tile("✦", "AI Assistant", "Improve summary & experience online", () ->
+                startActivity(new Intent(this, AiAssistantActivity.class))));
+        addPair(page,
+            tile("☁", "Cloud Account", "Sign in & manage online CVs", () ->
+                startActivity(new Intent(this, CloudAccountActivity.class))),
+            tile("✧", "CV Design Gallery", "Explore offline templates", () ->
+                startActivity(new Intent(this, ResumeTemplatesActivity.class))));
 
         LinearLayout online = new LinearLayout(this);
         online.setPadding(dp(17), dp(16), dp(17), dp(16));
