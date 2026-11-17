@@ -36,8 +36,14 @@ CraftCV now has an **offline native Android resume editor** as its launcher scre
 - Student/fresh-graduate starter and clear resume-completeness checklist (not an ATS guarantee); autosave when editing.
 - Offline editable cover-letter maker, manual draft saving, and cover-letter PDF export.
 - The previous advanced CraftCV website remains available as an **optional online studio**.
-- No AdMob SDK or test ad banners inside the Android app.
+- Consent-gated AdMob banner on the **Dashboard only**. Debug builds use Google test units; production ads are **disabled by default** until the owner sets both real AdMob publisher IDs for a signed release. No ads inside CV content, editor, PDF, Word or cover-letter screens. See `docs/ADMONETIZATION_AND_FUNCTION_QA.md`.
 - Android 16/API 36 target and GitHub Actions lint/debug build workflow retained.
+
+## Functional tests and AdMob
+
+The GitHub Actions pipeline now runs `testDebugUnitTest` alongside lint and APK compilation. Offline DOCX tests validate ZIP package components, core CV text and XML escaping. Real Android phone testing is still required for PDF/Word open/share, accounts, portrait pickers, accessibility and ad display.
+
+AdMob is included **only as an optional Dashboard banner** using Google's test IDs in debug. Release ads remain off until publisher AdMob App ID and Banner Ad Unit ID are provided through GitHub Secrets (`CRAFTCV_ADMOB_APP_ID`, `CRAFTCV_ADMOB_BANNER_UNIT_ID`). The UMP consent SDK gates requests and offers privacy choices when required. Update the public privacy policy, Play Console Contains ads and Data safety declarations before any production rollout. There are **no interstitial ads blocking CV creation or downloads**.
 
 ## Architecture and limitations
 
