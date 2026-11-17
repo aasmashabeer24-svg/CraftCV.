@@ -123,45 +123,62 @@ public final class ResumePreviewActivity extends Activity {
         row.addView(b,p);
     }
     private void renderDocument(){
+        if(info!=null)info.setText("Preparing CV preview...");
         try {
             pdfBytes=ResumePdf.generate(resume,style);
             previewFile=File.createTempFile("craftcv-preview-", ".pdf",getCacheDir());
             try(FileOutputStream file=new FileOutputStream(previewFile)){file.write(pdfBytes);}
-            int width=getResources().getDisplayMetrics().widthPixels-dp(28);
+            // Keep the rendered bitmaps small on older phones. Exported PDF remains full resolution.
+            int displayWidth=Math.max(dp(250),getResources().getDisplayMetrics().widthPixels-dp(28));
+            int width=Math.min(displayWidth,dp(620));
             try(ParcelFileDescriptor fd=ParcelFileDescriptor.open(previewFile,ParcelFileDescriptor.MODE_READ_ONLY);
                 PdfRenderer renderer=new PdfRenderer(fd)){
                 int count=renderer.getPageCount();
-                info.setText("Your CV • "+count+(count==1?" page":" pages")+" • A4 PDF • Ready to save");
-                // Limit displayed pages to keep bitmap memory controlled on older phones.
-                int shown=Math.min(count,8);
+                info.setText("Your finished CV • "+count+(count==1?" page":" pages")+" • Ready to save");
+                int shown=Math.min(count,3);
                 for(int i=0;i<shown;i++){
                     try(PdfRenderer.Page page=renderer.openPage(i)){
-                        int h=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
-                        Bitmap bitmap=Bitmap.createBitmap(width,h,Bitmap.Config.ARGB_8888);
+                        int height=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
+                        if((long)width*height>1400000L) {
+                            width=(int)Math.sqrt(1400000.0*page.getWidth()/page.getHeight());
+                            height=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
+                        }
+                        Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.RGB_565);
                         bitmap.eraseColor(Color.WHITE);
                         page.render(bitmap,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
                         ImageView image=new ImageView(this);
                         image.setImageBitmap(bitmap);
+                        image.setContentDescription("Resume PDF page "+(i+1));
                         image.setAdjustViewBounds(true);
-                        image.setBackgroundColor(Color.WHITE);
                         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                        image.setElevation(dp(3));
-                        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(width,h);
-                        lp.setMargins(0,0,0,dp(16));
+                        image.setBackgroundColor(Color.WHITE);
+                        image.setElevation(dp(2));
+                        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+                        lp.bottomMargin=dp(13);
                         pages.addView(image,lp);
+                    } catch(OutOfMemoryError tooLarge) {
+                        addPreviewHint("This CV is too large to display all pages on this phone. The full PDF can still be saved.");
+                        break;
                     }
                 }
-                if(count>shown){
-                    TextView warning=new TextView(this);
-                    warning.setText("Showing the first "+shown+" pages. Saved PDFs contain all "+count+" pages.");
-                    warning.setPadding(dp(12),dp(16),dp(12),dp(16));
-                    pages.addView(warning);
-                }
+                if(count>shown)addPreviewHint("Showing the first "+shown+" of "+count+" pages to save phone memory. Save PDF to view every page.");
             }
-        }catch(Exception e){
-            info.setText("Could not prepare preview: "+e.getMessage());
-            Toast.makeText(this,"Resume preview failed",Toast.LENGTH_LONG).show();
+        }catch(Exception error){
+            addPreviewHint("Preview unavailable. Return to the editor and try again. "+String.valueOf(error.getMessage()));
+            Toast.makeText(this,"Could not show PDF preview",Toast.LENGTH_LONG).show();
+        }catch(OutOfMemoryError memory){
+            addPreviewHint("Phone memory is low. Close other apps and try again. Your resume is saved.");
+            Toast.makeText(this,"Not enough memory for CV preview",Toast.LENGTH_LONG).show();
         }
+    }
+    private void addPreviewHint(String message){
+        TextView warning=new TextView(this);
+        warning.setText(message);
+        warning.setTextSize(13);
+        warning.setTextColor(0xFF315B65);
+        warning.setPadding(dp(14),dp(18),dp(14),dp(18));
+        warning.setBackgroundColor(Color.WHITE);
+        pages.addView(warning,new LinearLayout.LayoutParams(-1,-2));
     }
     private String name(){
         String value=resume.optString("name","Resume").trim().replaceAll("[^a-zA-Z0-9_-]+","-");
