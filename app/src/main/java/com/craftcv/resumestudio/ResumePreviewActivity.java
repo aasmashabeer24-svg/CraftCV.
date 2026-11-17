@@ -90,7 +90,7 @@ public final class ResumePreviewActivity extends Activity {
 
         LinearLayout titleRow=new LinearLayout(this);titleRow.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(titleRow);
-        Button back=button("‹ Edit CV",this::finish);
+        Button back=button("‹ Back",this::finish);
         titleRow.addView(back,new LinearLayout.LayoutParams(dp(110),dp(45)));
         TextView title=new TextView(this);
         title.setText("Your Finished CV");
