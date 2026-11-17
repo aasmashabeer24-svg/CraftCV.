@@ -39,6 +39,8 @@ import android.widget.Toast;
 
 /** Optional online studio. NativeResumeActivity remains functional without this website. */
 public final class MainActivity extends Activity {
+    /** Optional initial online workflow, e.g. "cloud" for the Cloud Account screen. */
+    public static final String EXTRA_START_PAGE = "craftcv_start_online_page";
     private static final String HOME = "https://craftcv-hees13.v2.appdeploy.ai/";
     private static final String HOST = "craftcv-hees13.v2.appdeploy.ai";
     private static final int PICK_FILE = 301;
