@@ -16,8 +16,11 @@
         <activity android:name=".ResumePreviewActivity" android:exported="false" />
         <activity android:name=".CoverLetterActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
-        <activity android:name=".NativeResumeActivity" android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+        <activity android:name=".ResumeTemplatesActivity" android:exported="false" />
+        <activity android:name=".ResumeLibraryActivity" android:exported="false" />
+        <activity android:name=".NativeResumeActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DashboardActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
