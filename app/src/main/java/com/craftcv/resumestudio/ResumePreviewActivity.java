@@ -67,6 +67,11 @@ public final class ResumePreviewActivity extends Activity {
                 JSONObject item=all.optJSONObject(i);
                 if(item!=null&&id.equals(item.optString("id"))){resume=item;break;}
             }
+            // A stale selected ID must not produce a blank document when saved CVs still exist.
+            if(resume.length()==0 && all.length()>0){
+                JSONObject fallback=all.optJSONObject(0);
+                if(fallback!=null)resume=fallback;
+            }
         }catch(Exception ignored){}
         style=Math.max(0,Math.min(11,resume.optInt("style",0)));
     }
@@ -123,53 +128,93 @@ public final class ResumePreviewActivity extends Activity {
         row.addView(b,p);
     }
     private void renderDocument(){
-        if(info!=null)info.setText("Preparing CV preview...");
-        try {
-            pdfBytes=ResumePdf.generate(resume,style);
-            previewFile=File.createTempFile("craftcv-preview-", ".pdf",getCacheDir());
-            try(FileOutputStream file=new FileOutputStream(previewFile)){file.write(pdfBytes);}
-            // Keep the rendered bitmaps small on older phones. Exported PDF remains full resolution.
-            int displayWidth=Math.max(dp(250),getResources().getDisplayMetrics().widthPixels-dp(28));
-            int width=Math.min(displayWidth,dp(620));
-            try(ParcelFileDescriptor fd=ParcelFileDescriptor.open(previewFile,ParcelFileDescriptor.MODE_READ_ONLY);
-                PdfRenderer renderer=new PdfRenderer(fd)){
-                int count=renderer.getPageCount();
-                info.setText("Your finished CV • "+count+(count==1?" page":" pages")+" • Ready to save");
-                int shown=Math.min(count,3);
-                for(int i=0;i<shown;i++){
-                    try(PdfRenderer.Page page=renderer.openPage(i)){
-                        int height=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
-                        if((long)width*height>1400000L) {
-                            width=(int)Math.sqrt(1400000.0*page.getWidth()/page.getHeight());
-                            height=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
+        if(info!=null)info.setText("Preparing your A4 CV...");
+        pages.removeAllViews();
+        addPreviewHint("Creating your CV preview. Your saved details are safe and you can return to editing.");
+
+        // PdfRenderer + bitmap allocation can stall the main thread on older Android phones.
+        // Render off the UI thread, and only attach completed bitmaps on the UI thread.
+        new Thread(()->{
+            java.util.ArrayList<Bitmap> bitmaps=new java.util.ArrayList<>();
+            byte[] generated=null;
+            int count=0;
+            String failure=null;
+            File temp=null;
+            try{
+                generated=ResumePdf.generate(resume,style);
+                temp=File.createTempFile("craftcv-preview-", ".pdf",getCacheDir());
+                try(FileOutputStream output=new FileOutputStream(temp)){
+                    output.write(generated);
+                }
+                int displayWidth=Math.max(dp(220),getResources().getDisplayMetrics().widthPixels-dp(28));
+                int targetWidth=Math.min(displayWidth,dp(620));
+                try(ParcelFileDescriptor fd=ParcelFileDescriptor.open(temp,ParcelFileDescriptor.MODE_READ_ONLY);
+                    PdfRenderer renderer=new PdfRenderer(fd)){
+                    count=renderer.getPageCount();
+                    for(int i=0;i<Math.min(count,3);i++){
+                        try(PdfRenderer.Page page=renderer.openPage(i)){
+                            double ratio=(double)page.getHeight()/Math.max(1,page.getWidth());
+                            int width=Math.min(targetWidth,(int)Math.sqrt(900000.0/ratio));
+                            width=Math.max(180,width);
+                            int height=Math.max(1,(int)Math.ceil(width*ratio));
+                            Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
+                            bitmap.eraseColor(Color.WHITE);
+                            page.render(bitmap,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                            bitmaps.add(bitmap);
                         }
-                        Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
-                        bitmap.eraseColor(Color.WHITE);
-                        page.render(bitmap,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
-                        ImageView image=new ImageView(this);
-                        image.setImageBitmap(bitmap);
-                        image.setContentDescription("Resume PDF page "+(i+1));
-                        image.setAdjustViewBounds(true);
-                        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                        image.setBackgroundColor(Color.WHITE);
-                        image.setElevation(dp(2));
-                        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
-                        lp.bottomMargin=dp(13);
-                        pages.addView(image,lp);
-                    } catch(OutOfMemoryError tooLarge) {
-                        addPreviewHint("This CV is too large to display all pages on this phone. The full PDF can still be saved.");
-                        break;
                     }
                 }
-                if(count>shown)addPreviewHint("Showing the first "+shown+" of "+count+" pages to save phone memory. Save PDF to view every page.");
+                if(count==0)failure="Your CV did not contain any PDF pages.";
+            }catch(Exception error){
+                failure="Could not render the CV preview: "+String.valueOf(error.getMessage());
+            }catch(OutOfMemoryError memory){
+                failure="This phone could not display the CV preview. Try closing other apps.";
+            }finally{
+                if(temp!=null)temp.delete();
             }
-        }catch(Exception error){
-            addPreviewHint("Preview unavailable. Return to the editor and try again. "+String.valueOf(error.getMessage()));
-            Toast.makeText(this,"Could not show PDF preview",Toast.LENGTH_LONG).show();
-        }catch(OutOfMemoryError memory){
-            addPreviewHint("Phone memory is low. Close other apps and try again. Your resume is saved.");
-            Toast.makeText(this,"Not enough memory for CV preview",Toast.LENGTH_LONG).show();
-        }
+
+            final byte[] readyPdf=generated;
+            final int pageCount=count;
+            final String errorMessage=failure;
+            runOnUiThread(()->{
+                if(isFinishing() || isDestroyed()){
+                    for(Bitmap bitmap:bitmaps)bitmap.recycle();
+                    return;
+                }
+                pages.removeAllViews();
+                if(readyPdf!=null){
+                    pdfBytes=readyPdf;
+                }
+                for(int i=0;i<bitmaps.size();i++){
+                    Bitmap bitmap=bitmaps.get(i);
+                    ImageView image=new ImageView(this);
+                    image.setImageBitmap(bitmap);
+                    image.setContentDescription("Resume PDF page "+(i+1));
+                    image.setAdjustViewBounds(true);
+                    image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                    image.setBackgroundColor(Color.WHITE);
+                    image.setElevation(dp(2));
+                    LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+                    lp.bottomMargin=dp(13);
+                    pages.addView(image,lp);
+                }
+                if(errorMessage!=null){
+                    info.setText("Preview needs attention");
+                    addPreviewHint(errorMessage);
+                    if(readyPdf!=null)addPreviewHint("The full PDF is available. Tap Save PDF to download it.");
+                }else{
+                    info.setText("Your finished CV • "+pageCount+
+                        (pageCount==1?" page":" pages")+" • Ready to save");
+                }
+                if(pageCount>bitmaps.size()){
+                    addPreviewHint("Showing the first "+bitmaps.size()+" of "+pageCount+
+                        " pages to save device memory. Save PDF to see the full document.");
+                }
+                if(bitmaps.isEmpty() && errorMessage==null){
+                    addPreviewHint("No preview image was produced. Please return to editing and try again.");
+                }
+            });
+        },"CraftCV-PDF-Preview").start();
     }
     private void addPreviewHint(String message){
         TextView warning=new TextView(this);
