@@ -89,12 +89,11 @@ public final class ResumeTemplatesActivity extends Activity {
             }
             editor.putString("resumes",all.toString()).apply();
             Toast.makeText(this,STYLES[index]+" design applied",Toast.LENGTH_SHORT).show();
-            if(getIntent().getBooleanExtra("return_to_editor",false)){
-                finish();
-            }else{
-                startActivity(new Intent(this,NativeResumeActivity.class));
-                finish();
-            }
+            // Show the actual generated A4 document immediately, not just a selected label.
+            // From an existing editor the preview returns to that editor; from Home it returns Home.
+            startActivity(new Intent(this,all.length()>0
+                ? ResumePreviewActivity.class : NativeResumeActivity.class));
+            finish();
         }catch(Exception e){Toast.makeText(this,"Could not save design",Toast.LENGTH_LONG).show();}
     }
     private void build(){
