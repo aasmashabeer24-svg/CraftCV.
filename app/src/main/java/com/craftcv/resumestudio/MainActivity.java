@@ -117,18 +117,44 @@ public final class MainActivity extends Activity {
         catch(ActivityNotFoundException error){Toast.makeText(this,"No browser found",Toast.LENGTH_LONG).show();}
     }
     private void printWebResume(){
-        if(webView==null || !trusted(Uri.parse(webView.getUrl()))){
-            Toast.makeText(this,"Open CraftCV first before printing",Toast.LENGTH_LONG).show();return;
+        if(webView==null || webView.getUrl()==null || !trusted(Uri.parse(webView.getUrl()))){
+            Toast.makeText(this,"Open CraftCV first before printing",Toast.LENGTH_LONG).show();
+            return;
         }
-        try{
-            PrintManager manager=(PrintManager)getSystemService(Context.PRINT_SERVICE);
-            if(manager==null)throw new IllegalStateException("Print service unavailable");
-            manager.print("CraftCV Resume",webView.createPrintDocumentAdapter("CraftCV Resume"),
-                new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                    .setColorMode(PrintAttributes.COLOR_MODE_COLOR).build());
-        }catch(Exception e){
-            Toast.makeText(this,"Could not open Save as PDF. Use native View CV instead.",Toast.LENGTH_LONG).show();
+        // A WebView on Home/Design/Library does not mount the resume paper.
+        // Navigate to the real CV first, then print only after React has rendered it.
+        String fragment=Uri.parse(webView.getUrl()).getFragment();
+        if(!"cv-preview".equals(fragment)){
+            webView.evaluateJavascript(
+                "(function(){window.location.hash='cv-preview';return true;})()",
+                result->handler.postDelayed(this::printVisibleWebResume,900)
+            );
+        }else{
+            printVisibleWebResume();
         }
+    }
+    private void printVisibleWebResume(){
+        if(webView==null || webView.getUrl()==null || !trusted(Uri.parse(webView.getUrl()))){
+            Toast.makeText(this,"Online CV is not available",Toast.LENGTH_LONG).show();
+            return;
+        }
+        String script="(function(){var paper=document.getElementById('resume-paper');"
+            +"return !!paper && paper.getClientRects().length>0 && paper.offsetHeight>100;})()";
+        webView.evaluateJavascript(script,result->{
+            if(!"true".equals(result)){
+                Toast.makeText(this,"CV preview is not visible yet. Open Finished CV and retry.",Toast.LENGTH_LONG).show();
+                return;
+            }
+            try{
+                PrintManager manager=(PrintManager)getSystemService(Context.PRINT_SERVICE);
+                if(manager==null)throw new IllegalStateException("Print service unavailable");
+                manager.print("CraftCV Resume",webView.createPrintDocumentAdapter("CraftCV Resume"),
+                    new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR).build());
+            }catch(Exception e){
+                Toast.makeText(this,"Could not open Save as PDF. Use native View CV instead.",Toast.LENGTH_LONG).show();
+            }
+        });
     }
     private void installDownloadAndPrintHooks(){
         if(webView==null || !trusted(Uri.parse(webView.getUrl())))return;
