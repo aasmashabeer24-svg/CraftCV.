@@ -2,6 +2,15 @@
 
 CraftCV now has an **offline native Android resume editor** as its launcher screen.
 
+## PDF, Word, AI and Cloud pages (Nov 17, 2026)
+
+- Native Dashboard now has direct **PDF & Word**, **AI Assistant** and **Cloud Account** tiles in separate workflows.
+- **PDF & Word:** Finished CV generates a searchable A4 PDF and an editable DOCX entirely offline. After Save As via Android's document picker, the app reopens the selected URI to check PDF header/DOCX package components when the provider permits it; **Open saved file** launches a compatible phone viewer for a real-world check. This is an in-app verification aid, not evidence of device testing already completed.
+- **Native AI Assistant:** Optional online screen uses the existing CraftCV /api/resume-assistant backend (summary rewrite, experience bullets or job comparison). Only role, summary, skills, work-experience notes and optional job description are sent over HTTPS after an explicit **Generate** tap; name, phone, email and portrait are not sent. The user can copy results or explicitly confirm applying an AI summary to the local CV. AI may be unavailable when the AppDeploy backend is paused or at its service limit.
+- **Cloud Account:** Dedicated Android entry screen opens the existing authenticated Online Studio cloud page. Login may need a system browser; an external-browser option is provided. **Offline native CVs are NOT automatically synced to the online account**—the existing website only syncs CVs created/uploaded in its own workflow. Neither native cloud authentication nor native cloud syncing is claimed.
+- AI and Cloud need internet. Native PDF/DOCX and offline CV editing still work without it.
+- New cloud/AI/export UI is on the draft Android development PR until real phone testing; no signed Play Store AAB or Google Play upload.
+
 ## Mobile navigation redesign (Nov 17, 2026)
 
 - Dashboard: dedicated landing page with Create CV, Continue Editing, Saved CVs, Templates, Cover Letters, Finished CV and optional Online Studio.
