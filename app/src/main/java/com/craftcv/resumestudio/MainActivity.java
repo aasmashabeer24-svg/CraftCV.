@@ -76,7 +76,7 @@ public final class MainActivity extends Activity {
         addAction(toolbar,"‹",v->finish());
         addAction(toolbar,"Online Studio",v->webView.loadUrl(HOME));
         addAction(toolbar,"Save PDF",v->printWebResume());
-        addAction(toolbar,"Refresh",v->webView.reload());
+        addAction(toolbar,"Refresh",v->{if(webView!=null)webView.reload();else recreate();});
         message=new TextView(this);
         message.setTextColor(Color.DKGRAY);
         message.setPadding(dp(18),dp(13),dp(18),dp(13));
@@ -249,10 +249,21 @@ public final class MainActivity extends Activity {
                 }
             }
             @Override public void onPageFinished(WebView view,String url) {
-                if(trusted(Uri.parse(url))){
+                if(url!=null&&trusted(Uri.parse(url))){
                     message.setVisibility(View.GONE);
                     installDownloadAndPrintHooks();
+                }else if(url==null||url.startsWith("about:blank")){
+                    message.setText("This page could not be displayed. Use Refresh or the Back button to return to CraftCV.");
+                    message.setVisibility(View.VISIBLE);
                 }
+            }
+            @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){
+                message.setText("Online Studio stopped responding. Your offline CVs remain safe. Tap Refresh to reopen Online Studio, or Back to return to CraftCV.");
+                message.setVisibility(View.VISIBLE);
+                root.removeView(view);
+                view.destroy();
+                webView=null;
+                return true;
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
@@ -316,8 +327,19 @@ public final class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed(){
-        if(webView!=null&&webView.canGoBack())webView.goBack();
-        else super.onBackPressed();
+        if(webView!=null&&webView.canGoBack()){
+            android.webkit.WebBackForwardList history=webView.copyBackForwardList();
+            int previous=history.getCurrentIndex()-1;
+            if(previous>=0){
+                android.webkit.WebHistoryItem item=history.getItemAtIndex(previous);
+                if(item!=null&&item.getUrl()!=null&&trusted(Uri.parse(item.getUrl()))){
+                    webView.goBack();
+                    return;
+                }
+            }
+        }
+        // Never navigate back into a blank about:blank, blob, or custom-scheme WebView history entry.
+        finish();
     }
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
