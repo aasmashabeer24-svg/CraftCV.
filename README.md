@@ -2,6 +2,16 @@
 
 CraftCV now has an **offline native Android resume editor** as its launcher screen.
 
+## Mobile navigation redesign (Nov 17, 2026)
+
+- Dashboard: dedicated landing page with Create CV, Continue Editing, Saved CVs, Templates, Cover Letters, Finished CV and optional Online Studio.
+- Build My CV: a **dedicated four-step builder** (Personal Details, Profile & Experience, Education & Skills, Projects & Finish), progress indicator, fixed Previous / Continue buttons and local autosave.
+- My Saved CVs: a separate list with per-resume Edit, View, Copy and Delete actions.
+- CV Templates: a separate visual gallery. Existing CV details are retained when applying a style.
+- Finished CV: separate A4 page, PDF, Word and sharing options. Cover letters remain their own separate page.
+- Existing offline CVs retain their data keys and can be reopened without migration.
+- These Android changes are on the **draft GitHub development branch**, not the existing AppDeploy web site or Play Store.
+
 ## What's built on this development branch
 
 - Native Android UI that works when AppDeploy and the internet are unavailable.
@@ -32,10 +42,10 @@ An Android App Bundle (AAB) must still be built with a **private signing key**, 
 1. Open the repository in Android Studio (JDK 17).
 2. Let Gradle sync with Android SDK 36 installed.
 3. Run `./gradlew :app:assembleDebug` if you have the Gradle wrapper available, or `gradle :app:assembleDebug` with a compatible Gradle installation.
-4. Install the debug APK on a phone. The launcher opens `NativeResumeActivity`.
-5. Create a CV, tap **View CV**, check the dedicated full-page preview, save PDF/Word, share the saved PDF, and return to editing.
+4. Install the debug APK on a phone. The launcher opens `DashboardActivity`.
+5. On the dashboard, open **Build My CV**, complete four steps, then check the full-page PDF preview and save or share PDF/Word.
 6. Open **Online Studio**. Check **Save PDF**, website **Download PDF** (native print dialog), and **Download Word** (Android Save As file picker).
-7. Test reopening, duplicating, deleting, student starter, cloud login, cover letter and offline mode.
+7. Test the separate Saved CVs and Templates pages, saved-record retention, duplication, deletion, fresher starter, cover letters and offline mode.
 8. Use **Open advanced web studio** if online advanced functionality is needed.
 
 The CI workflow performs `:app:lintDebug` and `:app:assembleDebug` on pushes and pull requests. Manual signed AAB builds require signing secrets.
