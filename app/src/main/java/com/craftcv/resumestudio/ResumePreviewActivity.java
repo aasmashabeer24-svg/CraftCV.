@@ -22,6 +22,10 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -43,6 +47,9 @@ public final class ResumePreviewActivity extends Activity {
     private File previewFile;
     private Button savePdfButton;
     private Button sharePdfButton;
+    private Button openSavedButton;
+    private Uri lastSavedUri;
+    private String lastSavedMime;
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
@@ -115,6 +122,12 @@ public final class ResumePreviewActivity extends Activity {
         info.setTextSize(12);
         info.setPadding(dp(16),dp(13),dp(16),dp(10));
         root.addView(info);
+
+        openSavedButton=button("Open last saved PDF / Word file",this::openSavedFile);
+        openSavedButton.setVisibility(android.view.View.GONE);
+        LinearLayout.LayoutParams openParams=new LinearLayout.LayoutParams(-1,dp(48));
+        openParams.setMargins(dp(14),0,dp(14),dp(8));
+        root.addView(openSavedButton,openParams);
 
         ScrollView scroller=new ScrollView(this);
         scroller.setFillViewport(false);
@@ -269,7 +282,18 @@ public final class ResumePreviewActivity extends Activity {
                 saved=true;
             }catch(Exception e){Toast.makeText(this,"File save failed: "+e.getMessage(),Toast.LENGTH_LONG).show();}
             if(saved){
-                Toast.makeText(this,request==SAVE_PDF?"PDF saved":"Word document saved",Toast.LENGTH_LONG).show();
+                lastSavedUri=data.getData();
+                lastSavedMime=request==SAVE_PDF?"application/pdf":
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                openSavedButton.setVisibility(android.view.View.VISIBLE);
+                String check=verifySavedDocument(lastSavedUri,request==SAVE_PDF);
+                if(check.equals("Verified")){
+                    info.setText((request==SAVE_PDF?"PDF":"Word")+" saved and file format verified.");
+                    Toast.makeText(this,"File saved. Tap Open saved file to check it.",Toast.LENGTH_LONG).show();
+                }else{
+                    info.setText("File saved, but verification could not complete: "+check);
+                    Toast.makeText(this,"File saved. Try opening it to verify.",Toast.LENGTH_LONG).show();
+                }
                 if(request==SAVE_PDF){
                     savedPdfUri=data.getData();
                     if(shareAfterSave)sharePdf();
@@ -277,6 +301,55 @@ public final class ResumePreviewActivity extends Activity {
             }
         }
         pendingBytes=null;shareAfterSave=false;
+    }
+    private String verifySavedDocument(Uri uri,boolean pdf){
+        try(InputStream input=getContentResolver().openInputStream(uri)){
+            if(input==null)return "cannot reopen saved file";
+            if(pdf){
+                byte[] prefix=new byte[5];
+                int count=0;
+                while(count<5){
+                    int read=input.read(prefix,count,5-count);
+                    if(read<0)break;
+                    count+=read;
+                }
+                return count==5 && "%PDF-".equals(new String(prefix,StandardCharsets.US_ASCII))
+                    ?"Verified":"invalid PDF header";
+            }
+            boolean types=false,document=false,relationships=false;
+            try(ZipInputStream zip=new ZipInputStream(input)){
+                ZipEntry entry;
+                int visited=0;
+                while((entry=zip.getNextEntry())!=null && visited++<80){
+                    String name=entry.getName();
+                    if("[Content_Types].xml".equals(name))types=true;
+                    if("word/document.xml".equals(name)){
+                        document=true;
+                        if(entry.getSize()==0)return "empty Word document";
+                    }
+                    if("_rels/.rels".equals(name))relationships=true;
+                    zip.closeEntry();
+                }
+            }
+            return types&&document&&relationships?"Verified":"missing Word document components";
+        }catch(Exception e){
+            // Some document providers allow write but not immediate re-read.
+            return "storage provider did not allow a readback";
+        }
+    }
+    private void openSavedFile(){
+        if(lastSavedUri==null || lastSavedMime==null){
+            Toast.makeText(this,"Save a PDF or Word file first.",Toast.LENGTH_LONG).show();return;
+        }
+        try{
+            Intent intent=new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(lastSavedUri,lastSavedMime);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.setClipData(ClipData.newUri(getContentResolver(),"CraftCV saved CV",lastSavedUri));
+            startActivity(Intent.createChooser(intent,"Open saved CraftCV file"));
+        }catch(Exception error){
+            Toast.makeText(this,"No compatible document viewer is installed. File is still saved.",Toast.LENGTH_LONG).show();
+        }
     }
     private void sharePdf(){
         if(savedPdfUri==null){savePdf(true);return;}
