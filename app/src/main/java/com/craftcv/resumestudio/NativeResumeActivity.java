@@ -115,11 +115,11 @@ public final class NativeResumeActivity extends Activity {
         addCommand(commands,"My CVs",this::chooseResume);
         addCommand(commands,"New CV",()->createNew(true));
         addCommand(commands,"Save",this::save);
-        addCommand(commands,"PDF",this::exportPDF);
+        addCommand(commands,"View CV",this::openFinishedCV);
         LinearLayout moreCommands=new LinearLayout(this);moreCommands.setOrientation(LinearLayout.HORIZONTAL);content.addView(moreCommands);
         addCommand(moreCommands,"Duplicate",this::duplicateResume);
         addCommand(moreCommands,"Delete",this::deleteResume);
-        addCommand(moreCommands,"Share PDF",this::sharePdf);
+        addCommand(moreCommands,"Save PDF",this::exportPDF);
         addCommand(moreCommands,"Cover letter",this::openCoverLetter);
         LinearLayout quickActions=new LinearLayout(this);quickActions.setOrientation(LinearLayout.HORIZONTAL);content.addView(quickActions);
         addCommand(quickActions,"Student starter",this::studentStarter);
@@ -166,14 +166,10 @@ public final class NativeResumeActivity extends Activity {
         }
         status=label("",12,Color.rgb(63,125,104));
         status.setPadding(0,dp(15),0,dp(10));content.addView(status);
-        Button previewButton=action("Update live preview",this::updatePreview);
+        Button previewButton=action("View finished CV • Full-page preview",this::openFinishedCV);
         content.addView(previewButton,new LinearLayout.LayoutParams(-1,dp(49)));
-        TextView previewHeading=label("LIVE PREVIEW",11,Color.rgb(62,112,111));
-        previewHeading.setPadding(0,dp(22),0,dp(12));previewHeading.setTypeface(null,android.graphics.Typeface.BOLD);
-        content.addView(previewHeading);
-        preview=label("",14,Color.rgb(33,55,68));
-        preview.setPadding(dp(20),dp(24),dp(20),dp(24));
-        preview.setBackgroundColor(Color.WHITE);content.addView(preview);
+        TextView previewInfo=label("Your finished CV opens on a separate full-page preview screen. You can review every page there, save a PDF or Word file, and share it.",12,Color.rgb(86,123,133));
+        previewInfo.setPadding(0,dp(14),0,dp(12));content.addView(previewInfo);
         Button advanced=action("Open advanced web studio (internet)",()->{
             startActivity(new Intent(this,MainActivity.class));
         });
@@ -267,11 +263,17 @@ public final class NativeResumeActivity extends Activity {
         intent.putExtra(CoverLetterActivity.EXTRA_RESUME_SKILLS,value(8,""));
         startActivity(intent);
     }
+    private void openFinishedCV(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        startActivity(new Intent(this,ResumePreviewActivity.class));
+    }
     private void duplicateResume(){
         save();
         JSONObject copy=snapshot();
         currentId="native-"+System.currentTimeMillis()+"-copy";
-        inputs[0].setText(copy.optString("name","")+" (Copy)");
+        // A duplicate must not alter the applicant's actual name.
+        inputs[0].setText(copy.optString("name",""));
         save();
         status.setText("Duplicated. Your original remains saved.");
     }
@@ -311,7 +313,8 @@ public final class NativeResumeActivity extends Activity {
         String[] names=new String[items.length()];
         for(int i=0;i<items.length();i++){
             JSONObject item=items.optJSONObject(i);
-            names[i]=item!=null ? item.optString("name","Untitled CV")+" — "+item.optString("role","") : "Resume";
+            names[i]=item!=null ? (item.optString("name","").trim().isEmpty()?"Untitled CV":item.optString("name"))+
+                (item.optString("id","").endsWith("-copy")?" (copy)":"")+" — "+item.optString("role","") : "Resume";
         }
         new AlertDialog.Builder(this).setTitle("My saved resumes").setItems(names,(dialog,which)->{
             JSONObject selected=items.optJSONObject(which);
