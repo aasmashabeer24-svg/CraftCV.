@@ -27,9 +27,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
-      - name: Build debug APK and lint
+      - name: Test Word exports, lint and build debug APK
         run: |
-          gradle --no-daemon :app:lintDebug :app:assembleDebug
+          gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
       - name: Show Android lint diagnostics on failure
         if: failure()
         shell: bash
