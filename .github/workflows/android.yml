@@ -63,6 +63,11 @@ jobs:
           echo "CRAFTCV_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
       - name: Build signed release AAB
         if: github.event_name == 'workflow_dispatch'
+        env:
+          # Optional, non-secret publisher identifiers; configure in repo Secrets.
+          # If either is absent, the AAB is built with ads disabled.
+          CRAFTCV_ADMOB_APP_ID: ${{ secrets.CRAFTCV_ADMOB_APP_ID }}
+          CRAFTCV_ADMOB_BANNER_UNIT_ID: ${{ secrets.CRAFTCV_ADMOB_BANNER_UNIT_ID }}
         run: gradle --no-daemon :app:bundleRelease
       - name: Upload signed AAB
         if: github.event_name == 'workflow_dispatch'
