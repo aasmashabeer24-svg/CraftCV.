@@ -48,6 +48,7 @@ public final class MainActivity extends Activity {
     private String pendingWebMime;
     private String pendingWebName;
     private boolean blobInProgress=false;
+    private boolean pageFailed=false;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private WebView webView;
     private LinearLayout root;
@@ -80,9 +81,11 @@ public final class MainActivity extends Activity {
         message=new TextView(this);
         message.setTextColor(Color.DKGRAY);
         message.setPadding(dp(18),dp(13),dp(18),dp(13));
-        message.setVisibility(View.GONE);
+        message.setText("Opening online CraftCV…");
+        message.setVisibility(View.VISIBLE);
         root.addView(message);
         webView=new WebView(this);
+        webView.setBackgroundColor(0xFFF5F8F9);
         root.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
         configure();
         if (Build.VERSION.SDK_INT >= 33) {
@@ -211,6 +214,30 @@ public final class MainActivity extends Activity {
             webView.evaluateJavascript("window.__craftcvBlobResult = null",null);
         });
     }
+    private void showStatus(String status){
+        if(message==null)return;
+        message.setText(status);
+        message.setVisibility(View.VISIBLE);
+    }
+    /**
+     * A successful HTTP load is not proof the React UI rendered. On older Android
+     * WebViews a script error can otherwise leave an entirely blank white page.
+     */
+    private void verifyOnlineScreen(WebView loadedView){
+        if(loadedView==null || loadedView!=webView)return;
+        String url=loadedView.getUrl();
+        if(url==null || !trusted(Uri.parse(url)) || pageFailed)return;
+        String script="(function(){var root=document.getElementById('root');"
+            +"return !!root && !!root.innerText && root.innerText.trim().length>35;})()";
+        loadedView.evaluateJavascript(script, result -> {
+            if(webView!=loadedView || pageFailed)return;
+            if("true".equals(result)){
+                message.setVisibility(View.GONE);
+            }else{
+                showStatus("Online Studio did not finish displaying. Tap Refresh above, or press Back to use your offline CV builder. Your saved CVs are safe.");
+            }
+        });
+    }
     private void configure() {
         WebSettings settings=webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -225,6 +252,10 @@ public final class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView,false);
         webView.setWebViewClient(new WebViewClient(){
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+                pageFailed=false;
+                showStatus("Opening CraftCV Online Studio…");
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
                 if("craftcv-print".equalsIgnoreCase(uri.getScheme())){
@@ -244,22 +275,22 @@ public final class MainActivity extends Activity {
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
                 if(request.isForMainFrame()) {
-                    message.setText("Online studio unavailable. Your offline resumes are safe. Return to the native editor.");
-                    message.setVisibility(View.VISIBLE);
+                    pageFailed=true;
+                    showStatus("Online Studio could not load. Tap Refresh above, or press Back for the offline CV builder. Your saved CVs remain safe.");
                 }
             }
             @Override public void onPageFinished(WebView view,String url) {
                 if(url!=null&&trusted(Uri.parse(url))){
-                    message.setVisibility(View.GONE);
                     installDownloadAndPrintHooks();
+                    if(!pageFailed)handler.postDelayed(()->verifyOnlineScreen(view),1500);
                 }else if(url==null||url.startsWith("about:blank")){
-                    message.setText("This page could not be displayed. Use Refresh or the Back button to return to CraftCV.");
-                    message.setVisibility(View.VISIBLE);
+                    pageFailed=true;
+                    showStatus("Page unavailable. Tap Refresh or Back to return to the offline CV builder.");
                 }
             }
             @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){
-                message.setText("Online Studio stopped responding. Your offline CVs remain safe. Tap Refresh to reopen Online Studio, or Back to return to CraftCV.");
-                message.setVisibility(View.VISIBLE);
+                pageFailed=true;
+                showStatus("Online Studio stopped responding. Tap Refresh to reopen it, or Back to use your offline CV.");
                 root.removeView(view);
                 view.destroy();
                 webView=null;
@@ -267,8 +298,8 @@ public final class MainActivity extends Activity {
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
-                message.setText("Secure connection failed. Return to the offline studio.");
-                message.setVisibility(View.VISIBLE);
+                pageFailed=true;
+                showStatus("Secure connection failed. Tap Back to return to the offline CV builder.");
             }
         });
         webView.setWebChromeClient(new WebChromeClient(){
