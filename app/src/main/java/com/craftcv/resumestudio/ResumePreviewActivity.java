@@ -192,16 +192,20 @@ public final class ResumePreviewActivity extends Activity {
         super.onActivityResult(request,result,data);
         if(request!=SAVE_PDF && request!=SAVE_DOCX)return;
         if(result==RESULT_OK && data!=null && data.getData()!=null && pendingBytes!=null){
+            boolean saved=false;
             try(OutputStream output=getContentResolver().openOutputStream(data.getData())){
                 if(output==null)throw new IllegalStateException("Cannot write document");
                 output.write(pendingBytes);
                 output.flush();
+                saved=true;
+            }catch(Exception e){Toast.makeText(this,"File save failed: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+            if(saved){
                 Toast.makeText(this,request==SAVE_PDF?"PDF saved":"Word document saved",Toast.LENGTH_LONG).show();
                 if(request==SAVE_PDF){
                     savedPdfUri=data.getData();
                     if(shareAfterSave)sharePdf();
                 }
-            }catch(Exception e){Toast.makeText(this,"File save failed: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+            }
         }
         pendingBytes=null;shareAfterSave=false;
     }
