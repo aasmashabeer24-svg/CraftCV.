@@ -143,7 +143,7 @@ public final class ResumePreviewActivity extends Activity {
                             width=(int)Math.sqrt(1400000.0*page.getWidth()/page.getHeight());
                             height=(int)Math.ceil(width*((double)page.getHeight()/page.getWidth()));
                         }
-                        Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.RGB_565);
+                        Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);
                         bitmap.eraseColor(Color.WHITE);
                         page.render(bitmap,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
                         ImageView image=new ImageView(this);
