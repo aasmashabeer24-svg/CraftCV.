@@ -54,6 +54,14 @@ public final class NativeResumeActivity extends Activity {
     private TextView preview;
     private TextView status;
     private boolean loading = false;
+    private int activeStep=0;
+    private final LinearLayout[] stepPanels=new LinearLayout[4];
+    private ScrollView formScroll;
+    private LinearLayout progressTrack;
+    private TextView progressCaption;
+    private TextView selectedDesign;
+    private Button backStepButton;
+    private Button continueStepButton;
     private final android.os.Handler saveHandler=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable savePending=()->{if(!loading)save();};
 
@@ -72,8 +80,11 @@ public final class NativeResumeActivity extends Activity {
             }
             if(initial==null && array.length()>0) initial=array.optJSONObject(0);
         } catch(Exception ignored) {}
-        if(initial!=null) load(initial);
+        if(getIntent().getBooleanExtra("start_new",false)){
+            createNew(false);
+        }else if(initial!=null) load(initial);
         else createNew(false);
+        showStep(0);
     }
 
     private SharedPreferences preferences() { return getSharedPreferences(PREFS,MODE_PRIVATE); }
@@ -94,89 +105,208 @@ public final class NativeResumeActivity extends Activity {
         b.setOnClickListener(v->command.run());
         return b;
     }
-    private void buildUI() {
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(244,248,248));
-        setContentView(scroll);
-        content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(18),dp(18),dp(18),dp(38));
-        scroll.addView(content);
-        TextView brand=label("CraftCV",29,Color.rgb(22,57,72));
-        brand.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(brand);
-        TextView subtitle=label("NATIVE RESUME STUDIO  •  WORKS OFFLINE",10,Color.rgb(74,128,125));
-        subtitle.setLetterSpacing(.12f);content.addView(subtitle);
-        TextView welcome=label("Create something unforgettable.",23,Color.rgb(27,59,70));
-        welcome.setTypeface(null,android.graphics.Typeface.BOLD);welcome.setPadding(0,dp(25),0,dp(6));content.addView(welcome);
-        TextView intro=label("Your CVs stay on this phone. Export a PDF anytime, even without an internet connection.",13,Color.rgb(104,126,134));
-        intro.setPadding(0,0,0,dp(14));content.addView(intro);
-        LinearLayout commands=new LinearLayout(this);
-        commands.setOrientation(LinearLayout.HORIZONTAL);content.addView(commands);
-        addCommand(commands,"My CVs",this::chooseResume);
-        addCommand(commands,"New CV",()->createNew(true));
-        addCommand(commands,"Save",this::save);
-        addCommand(commands,"View CV",this::openFinishedCV);
-        LinearLayout moreCommands=new LinearLayout(this);moreCommands.setOrientation(LinearLayout.HORIZONTAL);content.addView(moreCommands);
-        addCommand(moreCommands,"Duplicate",this::duplicateResume);
-        addCommand(moreCommands,"Delete",this::deleteResume);
-        addCommand(moreCommands,"Save PDF",this::exportPDF);
-        addCommand(moreCommands,"Cover letter",this::openCoverLetter);
-        LinearLayout quickActions=new LinearLayout(this);quickActions.setOrientation(LinearLayout.HORIZONTAL);content.addView(quickActions);
-        addCommand(quickActions,"Student starter",this::studentStarter);
-        addCommand(quickActions,"Resume check",this::resumeCheck);
-        addCommand(quickActions,"Surprise style",this::surpriseStyle);
-        addCommand(quickActions,"Word DOCX",this::exportDocx);
-        TextView choose=label("PICK YOUR DESIGN",11,Color.rgb(62,112,111));
-        choose.setPadding(0,dp(23),0,dp(9));choose.setTypeface(null,android.graphics.Typeface.BOLD);content.addView(choose);
-        content.addView(label("12 color and typography styles. Several share the same basic layout.",11,Color.rgb(105,125,130)));
-        for(int group=0;group<3;group++){
-            LinearLayout themeRow=new LinearLayout(this);content.addView(themeRow);
-            for(int i=group*4;i<(group+1)*4;i++){
-                final int selected=i;
-                Button button=action(themes[i],()->{style=selected;updatePreview();save();});
-                button.setTextSize(10);
-                button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(colors[i]));
-                LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(46),1);
-                p.setMargins(0,0,dp(4),dp(4));themeRow.addView(button,p);
+    private android.graphics.drawable.GradientDrawable background(int color,int radius,int stroke){
+        android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();
+        d.setColor(color);d.setCornerRadius(dp(radius));
+        if(stroke!=0)d.setStroke(dp(1),stroke);
+        return d;
+    }
+    private TextView heading(String value,int size,int color,boolean bold){
+        TextView t=label(value,size,color);
+        if(bold)t.setTypeface(android.graphics.Typeface.DEFAULT,android.graphics.Typeface.BOLD);
+        return t;
+    }
+    private Button toolbarButton(String value,Runnable task,boolean filled){
+        Button b=new Button(this);
+        b.setText(value);b.setAllCaps(false);b.setTextSize(12);
+        b.setTextColor(filled?Color.WHITE:0xFF26505A);
+        b.setBackgroundTintList(null);
+        b.setBackground(background(filled?0xFF246D65:0xFFEAF3F2,11,0));
+        b.setOnClickListener(v->task.run());return b;
+    }
+    private void openDesignPage(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        Intent intent=new Intent(this,ResumeTemplatesActivity.class);
+        intent.putExtra("return_to_editor",true);
+        startActivity(intent);
+    }
+    private void addSectionHeading(LinearLayout panel,String title,String description){
+        TextView h=heading(title,24,0xFF193D4B,true);
+        panel.addView(h);
+        TextView sub=heading(description,13,0xFF7A9098,false);
+        sub.setLineSpacing(dp(2),1.0f);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
+        p.topMargin=dp(8);p.bottomMargin=dp(15);
+        panel.addView(sub,p);
+    }
+    private void addField(LinearLayout panel,int index){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14),dp(13),dp(14),dp(11));
+        card.setBackground(background(Color.WHITE,14,0xFFE1EAED));
+        LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);
+        cp.bottomMargin=dp(12);panel.addView(card,cp);
+        TextView label=heading(fields[index],12,0xFF325766,true);
+        label.setPadding(dp(2),0,0,dp(6));card.addView(label);
+        EditText input=new EditText(this);
+        input.setTextSize(14);
+        input.setTextColor(0xFF203F4B);
+        input.setHintTextColor(0xFFA3B2B6);
+        input.setPadding(dp(12),dp(9),dp(12),dp(9));
+        input.setBackground(background(0xFFF7FAFB,9,0xFFE6ECEE));
+        boolean multiline=index>=5;
+        input.setSingleLine(!multiline);
+        if(multiline){
+            input.setMinLines(index==5?4:3);
+            input.setGravity(Gravity.TOP);
+            input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        }
+        if(index==2)input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        if(index==3)input.setInputType(InputType.TYPE_CLASS_PHONE);
+        String[] hints={
+            "Your full name","e.g. Software Developer","you@example.com","+92 3XX XXXXXXX","City, country",
+            "A few lines about your actual experience and goals",
+            "Job title, organization, dates and achievements",
+            "Qualification, institute and year","Separate your skills with commas or new lines",
+            "Project name and the work you completed"
+        };
+        input.setHint(hints[index]);
+        card.addView(input,new LinearLayout.LayoutParams(-1,-2));
+        inputs[index]=input;
+        input.addTextChangedListener(new android.text.TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence value,int start,int before,int count){}
+            @Override public void afterTextChanged(android.text.Editable editable){
+                if(loading)return;
+                saveHandler.removeCallbacks(savePending);
+                saveHandler.postDelayed(savePending,900);
+            }
+        });
+    }
+    private void showStep(int next){
+        activeStep=Math.max(0,Math.min(3,next));
+        for(int i=0;i<stepPanels.length;i++){
+            if(stepPanels[i]!=null)stepPanels[i].setVisibility(i==activeStep?View.VISIBLE:View.GONE);
+        }
+        if(progressCaption!=null)progressCaption.setText("STEP "+(activeStep+1)+" OF 4");
+        if(progressTrack!=null){
+            progressTrack.removeAllViews();
+            for(int i=0;i<4;i++){
+                View piece=new View(this);
+                piece.setBackground(background(i<=activeStep?0xFF2A897C:0xFFE3EAEC,8,0));
+                LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(0,dp(6),1);
+                if(i!=0)pp.leftMargin=dp(6);
+                progressTrack.addView(piece,pp);
             }
         }
-        TextView title=label("YOUR DETAILS",11,Color.rgb(62,112,111));
-        title.setTypeface(null,android.graphics.Typeface.BOLD);title.setPadding(0,dp(25),0,dp(8));content.addView(title);
-        for(int i=0;i<keys.length;i++) {
-            TextView fieldLabel=label(fields[i],12,Color.rgb(47,79,90));
-            fieldLabel.setPadding(0,dp(13),0,0);content.addView(fieldLabel);
-            EditText input=new EditText(this);
-            input.setTextSize(14);input.setSingleLine(i<5);
-            input.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(177,204,205)));
-            if(i>=5){input.setMinLines(3);input.setGravity(Gravity.TOP);}
-            if(i==2) input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-            if(i==3) input.setInputType(InputType.TYPE_CLASS_PHONE);
-            input.setHint(i>=6 ? "One achievement or detail per line" : fields[i]);
-            inputs[i]=input;content.addView(input);
-            input.addTextChangedListener(new android.text.TextWatcher(){
-                @Override public void beforeTextChanged(CharSequence value,int start,int count,int after){}
-                @Override public void onTextChanged(CharSequence value,int start,int before,int count){}
-                @Override public void afterTextChanged(android.text.Editable value){
-                    if(loading)return;
-                    updatePreview();
-                    saveHandler.removeCallbacks(savePending);
-                    saveHandler.postDelayed(savePending,1100);
-                }
-            });
+        if(backStepButton!=null){
+            backStepButton.setText(activeStep==0?"‹ Home":"‹ Previous");
         }
-        status=label("",12,Color.rgb(63,125,104));
-        status.setPadding(0,dp(15),0,dp(10));content.addView(status);
-        Button previewButton=action("View finished CV • Full-page preview",this::openFinishedCV);
-        content.addView(previewButton,new LinearLayout.LayoutParams(-1,dp(49)));
-        TextView previewInfo=label("Your finished CV opens on a separate full-page preview screen. You can review every page there, save a PDF or Word file, and share it.",12,Color.rgb(86,123,133));
-        previewInfo.setPadding(0,dp(14),0,dp(12));content.addView(previewInfo);
-        Button advanced=action("Open advanced web studio (internet)",()->{
-            startActivity(new Intent(this,MainActivity.class));
-        });
-        LinearLayout.LayoutParams advancedParams=new LinearLayout.LayoutParams(-1,dp(52));
-        advancedParams.setMargins(0,dp(20),0,0);content.addView(advanced,advancedParams);
-        TextView info=label("Advanced AI, cloud accounts and the full template gallery are still available through the separate online studio. The native editor above works without it.",12,Color.rgb(114,135,141));
-        info.setPadding(0,dp(9),0,0);content.addView(info);
+        if(continueStepButton!=null){
+            continueStepButton.setText(activeStep==3?"Finish & View CV  →":"Continue  →");
+        }
+        if(formScroll!=null)formScroll.post(()->formScroll.scrollTo(0,0));
+    }
+    private void forward(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        if(activeStep<3){showStep(activeStep+1);return;}
+        if(inputs[0].getText().toString().trim().isEmpty()){
+            showStep(0);
+            inputs[0].setError("Enter your name before finishing");
+            inputs[0].requestFocus();
+            Toast.makeText(this,"Add your full name to finish your CV",Toast.LENGTH_LONG).show();
+            return;
+        }
+        openFinishedCV();
+    }
+    private void backward(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        if(activeStep==0)finish();
+        else showStep(activeStep-1);
+    }
+    private void buildUI() {
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xFFF5F8F9);
+        setContentView(root);
+        LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(18),dp(13),dp(18),dp(15));
+        header.setBackground(background(Color.WHITE,0,0));
+        root.addView(header);
+
+        LinearLayout top=new LinearLayout(this);top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);header.addView(top);
+        Button home=toolbarButton("‹  Home",this::backward,false);
+        top.addView(home,new LinearLayout.LayoutParams(dp(99),dp(42)));
+        TextView title=heading("Build My CV",21,0xFF193D4B,true);
+        title.setGravity(Gravity.CENTER);
+        top.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));
+        Button design=toolbarButton("Design",this::openDesignPage,false);
+        top.addView(design,new LinearLayout.LayoutParams(dp(87),dp(42)));
+
+        progressCaption=heading("STEP 1 OF 4",10,0xFF398579,true);
+        progressCaption.setLetterSpacing(.13f);
+        LinearLayout.LayoutParams pc=new LinearLayout.LayoutParams(-1,-2);
+        pc.topMargin=dp(18);pc.bottomMargin=dp(7);
+        header.addView(progressCaption,pc);
+        progressTrack=new LinearLayout(this);progressTrack.setOrientation(LinearLayout.HORIZONTAL);
+        header.addView(progressTrack,new LinearLayout.LayoutParams(-1,dp(6)));
+
+        formScroll=new ScrollView(this);formScroll.setFillViewport(true);
+        root.addView(formScroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout allSteps=new LinearLayout(this);
+        allSteps.setOrientation(LinearLayout.VERTICAL);
+        allSteps.setPadding(dp(16),dp(24),dp(16),dp(25));
+        formScroll.addView(allSteps);
+        for(int i=0;i<stepPanels.length;i++){
+            stepPanels[i]=new LinearLayout(this);
+            stepPanels[i].setOrientation(LinearLayout.VERTICAL);
+            allSteps.addView(stepPanels[i]);
+        }
+
+        addSectionHeading(stepPanels[0],"Personal details","First, tell us how employers can contact you.");
+        for(int i=0;i<=4;i++)addField(stepPanels[0],i);
+
+        TextView helper=heading("Applying for your first job? Start as a fresher — you do not need to invent work experience.",12,0xFF587A83,false);
+        helper.setPadding(dp(6),dp(6),dp(6),dp(12));
+        stepPanels[0].addView(helper);
+        Button starter=toolbarButton("Start as student / fresher",this::studentStarter,false);
+        stepPanels[0].addView(starter,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        addSectionHeading(stepPanels[1],"Profile & experience","Summarize your strengths and add only genuine work, freelance or internship experience.");
+        addField(stepPanels[1],5);
+        addField(stepPanels[1],6);
+
+        addSectionHeading(stepPanels[2],"Education & skills","Add your qualifications and the skills relevant to your target job.");
+        addField(stepPanels[2],7);
+        addField(stepPanels[2],8);
+
+        addSectionHeading(stepPanels[3],"Projects & finishing","Add your best projects, check the CV, then see the finished document.");
+        addField(stepPanels[3],9);
+        Button check=toolbarButton("Check my resume",this::resumeCheck,false);
+        LinearLayout.LayoutParams chk=new LinearLayout.LayoutParams(-1,dp(52));
+        chk.topMargin=dp(12);stepPanels[3].addView(check,chk);
+        TextView finalNote=heading("Your resume is saved automatically. The next page will show the actual A4 CV, with Save PDF, Word and Share options.",12,0xFF6B858F,false);
+        finalNote.setPadding(dp(8),dp(18),dp(8),0);
+        stepPanels[3].addView(finalNote);
+
+        LinearLayout footer=new LinearLayout(this);footer.setOrientation(LinearLayout.VERTICAL);
+        footer.setPadding(dp(16),dp(8),dp(16),dp(13));
+        footer.setBackground(background(Color.WHITE,0,0));
+        root.addView(footer);
+        status=heading("Your progress saves on this phone.",11,0xFF478476,false);
+        status.setGravity(Gravity.CENTER);
+        footer.addView(status,new LinearLayout.LayoutParams(-1,dp(23)));
+        LinearLayout nav=new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);nav.setGravity(Gravity.CENTER_VERTICAL);
+        footer.addView(nav,new LinearLayout.LayoutParams(-1,dp(52)));
+        backStepButton=toolbarButton("‹ Home",this::backward,false);
+        LinearLayout.LayoutParams prev=new LinearLayout.LayoutParams(0,dp(50),1);
+        prev.rightMargin=dp(8);nav.addView(backStepButton,prev);
+        continueStepButton=toolbarButton("Continue  →",this::forward,true);
+        nav.addView(continueStepButton,new LinearLayout.LayoutParams(0,dp(50),2));
+        showStep(0);
     }
     private void addCommand(LinearLayout row,String title,Runnable callback) {
         Button b=action(title,callback);
@@ -211,7 +341,11 @@ public final class NativeResumeActivity extends Activity {
         saveHandler.removeCallbacks(savePending);
         if(confirm){new AlertDialog.Builder(this).setMessage("Start a new resume? Unsaved changes will be lost.").setPositiveButton("Create",(d,w)->createNew(false)).setNegativeButton("Cancel",null).show();return;}
         currentId="native-"+System.currentTimeMillis();
-        style=0;for(EditText input:inputs)input.setText("");
+        loading=true;
+        style=preferences().getInt("default_style",0);
+        for(EditText input:inputs)input.setText("");
+        loading=false;
+        showStep(0);
         updatePreview();status.setText("New resume created. Tap Save when ready.");
     }
     private void save() {
@@ -436,6 +570,20 @@ public final class NativeResumeActivity extends Activity {
             startActivityForResult(save,CREATE_PDF);
         }catch(Exception e){pendingPdf=null;status.setText("PDF export failed: "+e.getMessage());}
         finally {pdf.close();}
+    }
+    @Override protected void onResume(){
+        super.onResume();
+        if(currentId==null || currentId.isEmpty() || inputs[0]==null)return;
+        try{
+            JSONArray items=readItems();
+            for(int i=0;i<items.length();i++){
+                JSONObject row=items.optJSONObject(i);
+                if(row!=null && currentId.equals(row.optString("id"))){
+                    style=Math.max(0,Math.min(themes.length-1,row.optInt("style",style)));
+                    break;
+                }
+            }
+        }catch(Exception ignored){}
     }
     @Override protected void onPause(){
         saveHandler.removeCallbacks(savePending);
