@@ -1,6 +1,10 @@
 package com.craftcv.resumestudio;
 
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.RectF;
+import java.io.File;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
@@ -33,6 +37,7 @@ public final class ResumePdf {
         final int accent;
         final int theme;
         boolean centerHeader = false;
+        int textWidth = 505;
 
         Writer(int theme) {
             this.theme=Math.max(0,Math.min(ACCENTS.length-1,theme));
@@ -81,16 +86,16 @@ public final class ResumePdf {
                 if(paragraph.trim().isEmpty()) {ensure(9);y+=9;continue;}
                 StringBuilder line=new StringBuilder();
                 for(String word:paragraph.trim().split("\\s+")) {
-                    if(paint.measureText(word)>505) {
+                    if(paint.measureText(word)>textWidth) {
                         if(line.length()>0){line(line.toString(),lineHeight);line.setLength(0);}
                         for(int i=0;i<word.length();i++){
                             String chunk=line.toString()+word.charAt(i);
-                            if(paint.measureText(chunk)>505 && line.length()>0){line(line.toString(),lineHeight);line.setLength(0);}
+                            if(paint.measureText(chunk)>textWidth && line.length()>0){line(line.toString(),lineHeight);line.setLength(0);}
                             line.append(word.charAt(i));
                         }
                     } else {
                         String next=line.length()==0?word:line+" "+word;
-                        if(paint.measureText(next)>505 && line.length()>0){line(line.toString(),lineHeight);line.setLength(0);}
+                        if(paint.measureText(next)>textWidth && line.length()>0){line(line.toString(),lineHeight);line.setLength(0);}
                         if(line.length()>0)line.append(' ');
                         line.append(word);
                     }
@@ -132,7 +137,11 @@ public final class ResumePdf {
         // Distinct document families rather than twelve recolours of the same header.
         boolean hero=(selected==2 || selected==7);
         boolean softPanel=(selected==4 || selected==10);
-        w.centerHeader=(selected==5 || selected==8 || selected==10);
+        String savedPhoto=data.optString("photoPath","");
+        File portrait=savedPhoto.isEmpty()?null:new File(savedPhoto);
+        boolean hasPhoto=portrait!=null && portrait.isFile();
+        w.centerHeader=!hasPhoto && (selected==5 || selected==8 || selected==10);
+        if(hasPhoto)w.textWidth=395;
         if(hero){
             w.paint.setColor(w.accent);
             w.canvas.drawRect(0,0,595,223,w.paint);
@@ -163,6 +172,23 @@ public final class ResumePdf {
             w.wrap(contact,selected==9?14:17);
         }
         w.centerHeader=false;
+        w.textWidth=505;
+        if(hasPhoto){
+            try{
+                BitmapFactory.Options options=new BitmapFactory.Options();
+                options.inSampleSize=2;
+                Bitmap bitmap=BitmapFactory.decodeFile(savedPhoto,options);
+                if(bitmap!=null){
+                    w.paint.setColor(Color.WHITE);
+                    w.canvas.drawRoundRect(new RectF(459,47,556,151),8,8,w.paint);
+                    w.paint.setAlpha(255);
+                    w.canvas.drawBitmap(bitmap,null,new RectF(464,52,551,146),w.paint);
+                    bitmap.recycle();
+                }
+            }catch(Exception ignored){
+                // Missing/corrupt image must never block text CV export.
+            }catch(OutOfMemoryError ignored){}
+        }
 
         if(hero){
             w.y=Math.max(w.y+12,244);
