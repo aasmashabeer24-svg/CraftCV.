@@ -10,6 +10,10 @@
         android:usesCleartextTraffic="false"
         android:allowBackup="false"
         android:supportsRtl="true">
+        <!-- Build-specific AdMob ID: Google demo in debug; owner ID only for configured release. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${craftcvAdmobAppId}" />
         <activity android:name=".MainActivity" android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize" />
