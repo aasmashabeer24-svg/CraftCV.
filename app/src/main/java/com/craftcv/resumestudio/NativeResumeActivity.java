@@ -196,7 +196,14 @@ public final class NativeResumeActivity extends Activity {
         loading=true;
         currentId=item.optString("id");
         style=Math.max(0,Math.min(themes.length-1,item.optInt("style",0)));
-        for(int i=0;i<keys.length;i++)inputs[i].setText(item.optString(keys[i],""));
+        for(int i=0;i<keys.length;i++){
+            String loaded=item.optString(keys[i],"");
+            // Repair records created by the old duplicate bug, which wrote "(Copy)" as the person's name.
+            if(i==0 && "(Copy)".equals(loaded.trim()) && item.optString("role","").trim().isEmpty()){
+                loaded="";
+            }
+            inputs[i].setText(loaded);
+        }
         loading=false;updatePreview();
         preferences().edit().putString(KEY_CURRENT,currentId).apply();
     }
