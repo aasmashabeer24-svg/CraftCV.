@@ -18,6 +18,8 @@
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ResumePreviewActivity" android:exported="false" />
+        <activity android:name=".EducationSkillsActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".AiAssistantActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".CloudAccountActivity" android:exported="false" />
