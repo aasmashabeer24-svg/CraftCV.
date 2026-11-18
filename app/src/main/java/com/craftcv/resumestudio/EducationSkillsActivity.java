@@ -37,10 +37,11 @@ public final class EducationSkillsActivity extends Activity {
     private static final String KEY_ITEMS = "resumes";
     private static final String KEY_CURRENT = "current";
     private static final String[] QUALIFICATIONS = {
-        "Matric / SSC", "Intermediate / HSSC", "FA / FSc / ICS / I.Com",
-        "DAE / Diploma", "Associate Degree", "Bachelor's / BS",
+        "Matric / SSC", "O Levels / A Levels", "Intermediate / HSSC", "FA / FSc / ICS / I.Com",
+        "DAE / Diploma", "Vocational / Trade Certificate", "Associate Degree",
+        "Bachelor's / BS", "B.Com / BBA", "CA / ACCA / ICMA",
         "Master's / MA / MSc / MBA", "MS / MPhil", "PhD",
-        "Professional Certificate", "Other"
+        "MBBS / BDS / Allied Health", "LLB / Law", "Professional Certificate", "Other"
     };
     private static final String[] SKILL_CATEGORIES = {
         "Technical Skills", "Soft Skills", "Tools & Software", "Business Skills",
@@ -377,12 +378,26 @@ public final class EducationSkillsActivity extends Activity {
             .show();
     }
 
+    private String suggestedSkills(String category) {
+        if ("Technical Skills".equals(category)) return "Programming, Data Analysis, Troubleshooting, Research";
+        if ("Soft Skills".equals(category)) return "Communication, Teamwork, Problem Solving, Time Management";
+        if ("Tools & Software".equals(category)) return "Microsoft Excel, Word, PowerPoint, Google Workspace";
+        if ("Business Skills".equals(category)) return "Customer Service, Sales, Marketing, Record Keeping";
+        if ("Creative Skills".equals(category)) return "Graphic Design, Content Writing, Video Editing, Photography";
+        if ("Languages".equals(category)) return "Urdu, English";
+        if ("Healthcare Skills".equals(category)) return "Patient Care, Medical Terminology, First Aid, Documentation";
+        if ("Engineering Skills".equals(category)) return "Technical Drawing, CAD, Quality Control, Safety Procedures";
+        if ("Education & Training".equals(category)) return "Lesson Planning, Classroom Management, Assessment, Mentoring";
+        if ("Customer Service".equals(category)) return "Active Listening, Complaint Resolution, CRM, Product Knowledge";
+        return "";
+    }
+
     private void chooseNewSkillCategory() {
         new AlertDialog.Builder(this).setTitle("Choose skill category")
             .setItems(SKILL_CATEGORIES, (dialog, which) -> {
                 String category = SKILL_CATEGORIES[which];
                 if ("Other / Custom".equals(category)) addCustomSkillCategory();
-                else addSkillGroup(category, "");
+                else addSkillGroup(category, suggestedSkills(category));
             }).show();
     }
 
