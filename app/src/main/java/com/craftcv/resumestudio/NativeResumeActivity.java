@@ -59,6 +59,9 @@ public final class NativeResumeActivity extends Activity {
     private int style = 0;
     private String currentId = "";
     private String photoPath = "";
+    // Structured records are mirrored to the legacy text fields for existing exports.
+    private JSONArray educationEntries = new JSONArray();
+    private JSONArray skillGroups = new JSONArray();
     private ImageView photoPreview;
     private TextView photoStatus;
     private LinearLayout content;
@@ -140,6 +143,13 @@ public final class NativeResumeActivity extends Activity {
         save();
         Intent intent=new Intent(this,ResumeTemplatesActivity.class);
         intent.putExtra("return_to_editor",true);
+        startActivity(intent);
+    }
+    private void openEducationSkills(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        Intent intent=new Intent(this,EducationSkillsActivity.class);
+        intent.putExtra("resume_id",currentId);
         startActivity(intent);
     }
     private void addSectionHeading(LinearLayout panel,String title,String description){
@@ -420,6 +430,15 @@ public final class NativeResumeActivity extends Activity {
         addSectionHeading(stepPanels[2],"Education & skills","Add your qualifications and the skills relevant to your target job.");
         addField(stepPanels[2],7);
         addField(stepPanels[2],8);
+        // Keep legacy text values available to PDF/DOCX/AI, but edit them in
+        // the dedicated repeatable Education & Skills screen.
+        ((View)inputs[7].getParent()).setVisibility(View.GONE);
+        ((View)inputs[8].getParent()).setVisibility(View.GONE);
+        TextView structuredNote=heading("Add multiple qualifications and organize skills into separate categories. Your existing CV details remain compatible.",12,0xFF66818A,false);
+        structuredNote.setPadding(dp(5),dp(5),dp(5),dp(12));
+        stepPanels[2].addView(structuredNote);
+        Button manageEducationSkills=toolbarButton("Manage Education & Skill Categories",this::openEducationSkills,true);
+        stepPanels[2].addView(manageEducationSkills,new LinearLayout.LayoutParams(-1,dp(51)));
 
         addSectionHeading(stepPanels[3],"Projects & finishing","Add your best projects, check the CV, then see the finished document.");
         addField(stepPanels[3],9);
@@ -458,6 +477,8 @@ public final class NativeResumeActivity extends Activity {
         try {
             item.put("id",currentId);item.put("style",style);
             item.put("photoPath",photoPath);
+            item.put("educationEntries",educationEntries);
+            item.put("skillGroups",skillGroups);
             for(int i=0;i<keys.length;i++)item.put(keys[i],inputs[i].getText().toString());
         } catch(Exception ignored){}
         return item;
@@ -468,6 +489,10 @@ public final class NativeResumeActivity extends Activity {
         photoPath=item.optString("photoPath","");
         refreshPhoto();
         style=Math.max(0,Math.min(themes.length-1,item.optInt("style",0)));
+        educationEntries=item.optJSONArray("educationEntries");
+        if(educationEntries==null)educationEntries=new JSONArray();
+        skillGroups=item.optJSONArray("skillGroups");
+        if(skillGroups==null)skillGroups=new JSONArray();
         for(int i=0;i<keys.length;i++){
             String loaded=item.optString(keys[i],"");
             // Repair records created by the old duplicate bug, which wrote "(Copy)" as the person's name.
@@ -485,6 +510,8 @@ public final class NativeResumeActivity extends Activity {
         if(confirm){new AlertDialog.Builder(this).setMessage("Start a new resume? Unsaved changes will be lost.").setPositiveButton("Create",(d,w)->createNew(false)).setNegativeButton("Cancel",null).show();return;}
         currentId="native-"+System.currentTimeMillis();
         photoPath="";
+        educationEntries=new JSONArray();
+        skillGroups=new JSONArray();
         refreshPhoto();
         loading=true;
         style=preferences().getInt("default_style",0);
@@ -720,16 +747,29 @@ public final class NativeResumeActivity extends Activity {
     @Override protected void onResume(){
         super.onResume();
         if(currentId==null || currentId.isEmpty() || inputs[0]==null)return;
+        JSONObject current=null;
         try{
             JSONArray items=readItems();
             for(int i=0;i<items.length();i++){
                 JSONObject row=items.optJSONObject(i);
                 if(row!=null && currentId.equals(row.optString("id"))){
+                    current=row;
                     style=Math.max(0,Math.min(themes.length-1,row.optInt("style",style)));
                     break;
                 }
             }
         }catch(Exception ignored){}
+        if(current!=null && !loading){
+            loading=true;
+            educationEntries=current.optJSONArray("educationEntries");
+            if(educationEntries==null)educationEntries=new JSONArray();
+            skillGroups=current.optJSONArray("skillGroups");
+            if(skillGroups==null)skillGroups=new JSONArray();
+            if(inputs[7]!=null)inputs[7].setText(current.optString("education",""));
+            if(inputs[8]!=null)inputs[8].setText(current.optString("skills",""));
+            loading=false;
+            updatePreview();
+        }
         if(selectedDesign!=null)selectedDesign.setText("Current design: "+themes[style]);
     }
     @Override protected void onPause(){
