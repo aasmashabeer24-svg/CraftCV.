@@ -49,15 +49,15 @@ The same run skipped release signing and signed AAB generation. Its artifact is 
 ## Required physical Android acceptance test
 
 1. Back up existing CVs. Install the debug update over the existing debug build if possible; do not uninstall first.
-2. Create a CV and fill all four builder steps.
-3. Open Education & Skills. Add at least two qualifications (for example Intermediate and Bachelor's), then add Technical Skills and Soft Skills groups. Edit and remove one entry, save, return to the builder, reopen the screen, and verify the information remains. Check that both PDF and DOCX show the grouped content. Navigate Back/Continue, close the app, reopen and confirm autosave.
+2. Create a CV and fill all four builder steps. Navigate Back/Continue, close the app, reopen and confirm autosave.
+3. Open Education & Skills. Add at least two qualifications (for example Intermediate and Bachelor's), then add Technical Skills and Soft Skills groups. Edit and remove one entry, save, return to the builder, reopen the screen, and verify the information remains. Check that both PDF and DOCX show the grouped content.
 4. Open Templates and apply at least four different styles. Confirm the actual PDF design changes.
 5. Import JPG and PNG portraits; verify orientation and PDF inclusion/removal.
 6. Open Finished CV; confirm a nonblank A4 preview, including long multi-page content.
-6. Save PDF and DOCX using Android's document picker. Open both in external compatible apps; share the PDF.
-7. Duplicate a CV, edit/delete the copy, and confirm the original remains unchanged after restart.
+7. Save PDF and DOCX using Android's document picker. Open both in external compatible apps; share the PDF.
+8. Duplicate a CV, edit/delete the copy, and confirm the original remains unchanged after restart.
 9. Create and reopen a cover letter; export and open its PDF.
-9. Turn internet off and repeat native editing, templates, PDF and DOCX. These offline workflows should remain available.
+10. Turn internet off and repeat native editing, templates, PDF and DOCX. These offline workflows should remain available.
 11. Turn internet on. Test AI summary, bullets and job matching; test a service failure and verify CV data is not changed unless the user applies a suggestion.
 12. Sign in to Cloud Account, create/edit/delete an online CV and open it on another browser/device. Confirm local offline CVs are not represented as synced.
 13. Verify the debug demo banner and UMP consent/privacy choices. Confirm no ad appears in editor, preview or exports.
