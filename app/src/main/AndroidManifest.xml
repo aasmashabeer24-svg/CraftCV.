@@ -22,6 +22,8 @@
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".WorkExperienceActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ProjectsActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".AiAssistantActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity android:name=".CloudAccountActivity" android:exported="false" />
