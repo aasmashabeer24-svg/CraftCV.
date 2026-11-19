@@ -53,9 +53,9 @@ The optional Online Studio Cloud Account flow allows users to sign in / create a
 
 The AppDeploy Auth SDK reference available to this project exposes sign-in, getUser and sign-out, but no account-delete method. Do not claim account deletion is complete until a supported provider deletion path is implemented and tested. If the account feature remains in the Android release, resolve this before submission. Another release strategy is to remove account creation/cloud access from the Play build until deletion is supported.
 
-### AI endpoint — production hardening required
+### AI endpoint — bounded, but still public
 
-The Online Studio backend currently accepts `POST /api/resume-assistant` without authentication or rate limiting. The native AI screen sends the selected role, summary, skills, experience notes and optional job description; it does not send name, email, phone or photo. The AI service is an online third-party processor. Secure this endpoint with appropriate abuse/cost controls and document the AI data flow before production, or disable the AI feature in the Play build until it is secured.
+The Online Studio backend now applies a shared compare-and-swap quota of 100 AI requests per UTC day. The native screen gives a clear message when the daily limit is reached. The endpoint remains unauthenticated and the quota is global to the app rather than per user; this is a cost guardrail, not identity-based abuse prevention. The native AI screen sends the selected role, summary, skills, experience notes and optional job description; it does not send name, email, phone or photo. The AI service is an online third-party processor. Verify 429 behavior and disclose this data flow in the final privacy policy before production.
 
 ### Data Safety — form not completed
 
