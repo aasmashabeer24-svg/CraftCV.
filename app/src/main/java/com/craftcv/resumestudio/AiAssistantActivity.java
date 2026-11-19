@@ -219,6 +219,8 @@ public final class AiAssistantActivity extends Activity {
                 int code=connection.getResponseCode();
                 InputStream stream=code>=200&&code<300?connection.getInputStream():connection.getErrorStream();
                 String raw=stream==null?"":readResponse(stream);
+                if(code==429)throw new IllegalStateException("The free daily AI limit has been reached, or another request is still processing. Please retry later.");
+                if(code>=500)throw new IllegalStateException("AI is temporarily unavailable. Your CV data was not changed.");
                 if(code<200||code>=300)throw new IllegalStateException("Online AI service unavailable (HTTP "+code+")");
                 result=limited(new JSONObject(raw).optString("text",""),24000);
                 if(result.isEmpty())throw new IllegalStateException("No suggestions returned");
