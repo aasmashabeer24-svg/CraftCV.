@@ -4,6 +4,23 @@ Updated: 18 November 2026. Android branch: `feature/native-offline-craftcv`; onl
 
 **Status rule:** A successful build, unit test, or web deployment QA is not proof that every interaction works on a physical Android phone or with a live user account.
 
+## Mobile layout fixes — 19 November 2026
+
+The user supplied Android screenshots with three specific issues. The source fixes are now committed on the native development branch and the online app has been redeployed:
+
+- **Online Studio home screen:** index viewport now includes `viewport-fit=cover` and `interactive-widget=resizes-content`; Android WebView explicitly honors the device-width viewport and does not shrink a desktop page with overview mode.
+- **Online Studio mobile CSS:** final responsive overrides are placed after the original stylesheet rules so earlier desktop / sticky-footer styles cannot override them. Mobile home cards use a readable two-column layout; builder forms use one column and full width.
+- **Native Education & Skills step:** short form content is vertically centered in the available workspace instead of looking stuck at the top with all unused space below.
+- **Native editor keyboard:** the Previous / Continue footer hides while the Android IME is visible and returns when the keyboard closes. This prevents the fixed navigation from covering multiline work-experience fields.
+
+The Online Studio deployment is ready and its latest QA snapshot reports no frontend or network errors. The Android code changes passed CI in run `44474517094`:
+- `:app:testDebugUnitTest`
+- `:app:lintDebug`
+- `:app:assembleDebug`
+- Debug APK artifact upload
+
+**Still required:** repeat the same flows on a physical Android phone after installing the new debug build. CI cannot prove keyboard insets and WebView sizing behave identically on every device.
+
 ## Current verification
 
 | Capability | Implemented in source | Automated / deployment checks | Still pending |
