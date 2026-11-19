@@ -238,11 +238,8 @@ public final class WorkExperienceActivity extends Activity {
     private void addInput(LinearLayout parent, JSONObject row, String title, String hint, String key, boolean multiline) {
         LinearLayout wrap = new LinearLayout(this);
         wrap.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(0, -2, parent == list ? 1 : 1);
-        if (parent != list) {
-            wp.width = -1;
-            wp.weight = 0;
-        }
+        boolean horizontal = parent.getOrientation() == LinearLayout.HORIZONTAL;
+        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(horizontal ? 0 : -1, -2, horizontal ? 1f : 0f);
         wp.topMargin = dp(10);
         parent.addView(wrap, wp);
         wrap.addView(text(title, 12, INK, true));
