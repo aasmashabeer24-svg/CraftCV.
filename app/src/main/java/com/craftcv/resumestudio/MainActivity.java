@@ -117,7 +117,7 @@ public final class MainActivity extends Activity {
         root.addView(refreshLayout,new LinearLayout.LayoutParams(-1,0,1));
         webView=new WebView(this);
         webView.setBackgroundColor(0xFFF5F8F9);
-        refreshLayout.addView(webView,new SwipeRefreshLayout.LayoutParams(-1,-1));
+        refreshLayout.addView(webView,new android.view.ViewGroup.LayoutParams(-1,-1));
         configure();
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
