@@ -13,6 +13,8 @@ The user supplied Android screenshots with three specific issues. The source fix
 - **Native Education & Skills step:** short form content is vertically centered in the available workspace instead of looking stuck at the top with all unused space below.
 - **Native editor keyboard:** the Previous / Continue footer hides while the Android IME is visible and returns when the keyboard closes. This prevents the fixed navigation from covering multiline work-experience fields.
 - **Native Work Experience:** replaced the single long text field with a repeatable structured editor for job title, employer, industry, employment type, location, start/end dates and achievements. Existing text is migrated into a legacy entry and the structured data is mirrored back for existing PDF/DOCX exporters.
+- **Native Projects & Portfolio:** added repeatable academic, personal, professional, freelance, open-source and research project records with role, organization, technologies, dates, URL and description; existing text is migrated and mirrored for exports.
+- **Native finishing sections:** added certifications, languages, awards, interests and references to the final builder step and included them in PDF and editable Word output.
 - **Native Education & Skills:** expanded qualification presets and the skill category library to cover IT, programming, data, cybersecurity, cloud, business, finance, creative, healthcare, engineering, education, languages, logistics and more.
 - **Online Studio CV builder:** expanded the education list and skill suggestions, added work industry/employment type/location fields, project category/tools/link fields and optional references. The added fields flow into the live CV preview and Word export.
 - **Online AI assistant:** added a project-description mode, mode-specific input validation and clearer provider timeout/quota/failure messages. The original CV remains unchanged until the user applies a suggestion.
@@ -31,7 +33,7 @@ The Online Studio deployment is ready and its latest QA snapshot reports no fron
 |---|---|---|---|
 | Native dashboard and separate screens | Yes | Android compile + lint passed | Phone layout, navigation and system Back |
 | Four-step offline CV builder and autosave | Yes | Compile + lint passed | Enter, save, relaunch and reopen on phone |
-| Native Education & Skills editor | Multiple qualifications, expanded Pakistani/international qualification presets, institution/field/dates/grade/notes, 28 skill categories and custom categories; legacy text mirrored for exports | Android CI run `44477070888` pending | Add/edit/remove multiple entries and verify save/reopen on phone |
+| Native Education & Skills editor | Multiple qualifications, expanded Pakistani/international qualification presets, institution/field/dates/grade/notes, 28 skill categories and custom categories; legacy text mirrored for exports | Android CI run `44477070888` passed before the later integrated experience/project/finishing commits; latest CI pending | Add/edit/remove multiple entries and verify save/reopen on phone |
 | Saved CV library, duplicate and delete | Yes | Compile + lint passed | Persistence and original-preservation test |
 | Native templates | 12 styles | Compile + lint passed | Compare actual rendered PDF styles on phone |
 | Online template gallery | 14 styles and separate hash-routed pages | Latest AppDeploy deployment ready; no frontend/network errors | Real mobile interaction and browser Back |
@@ -39,7 +41,7 @@ The Online Studio deployment is ready and its latest QA snapshot reports no fron
 | Native PDF preview/export/share | A4 PDF generation, renderer, Android Save As and open/share | Compile + lint passed | Long multi-page PDF, external viewer and print test |
 | Native DOCX export | Editable Office Open XML ZIP document | JUnit verifies ZIP parts, XML escaping and content | Open in Microsoft Word / Google Docs on Android and desktop |
 | Cover letter | Offline editor and PDF export | Compile + lint passed | Save/reopen/export test on phone |
-| Native AI Assistant | Optional HTTPS summary, experience bullets and job-description review; apply only after confirmation | Compile + lint passed in earlier CI; backend has shared 100-request-per-UTC-day quota | Live request, 429 behavior and phone test |
+| Native Projects & Portfolio | Repeatable project records with category, role, organization, tools, dates, URL and achievements; legacy mirror keeps existing exports compatible | Latest integrated Android CI pending | Add/edit/remove multiple projects and verify PDF/DOCX on phone |\n| Native finishing sections | Certifications, languages, awards, interests and references are added to the final step and PDF/DOCX exporters | Latest integrated Android CI pending | Verify each section in PDF and DOCX on phone |\n| Native AI Assistant | Optional HTTPS summary, experience bullets and job-description review; apply only after confirmation | Compile + lint passed in earlier CI; backend has shared 100-request-per-UTC-day quota | Live request, 429 behavior and phone test |
 | Cloud Account | Separate native entry opens authenticated Online Studio | Compile + lint passed; cloud APIs require auth | Live sign-in, create/edit/delete and cross-device test |
 | Native-to-cloud sync | Not implemented | Not applicable | Offline native CVs remain local; manual online upload required |
 | Online Studio | Optional WebView and browser; separate Build, Templates, Finished CV, AI and Cloud pages; expanded education and skills; structured work categories and project metadata; optional references | Latest AppDeploy status ready; frontend/network errors empty | WebView login, Android file picker and blob downloads on phone; exercise new AI modes with real inputs |
@@ -49,7 +51,7 @@ The Online Studio deployment is ready and its latest QA snapshot reports no fron
 
 ## Latest CI evidence
 
-GitHub Actions run `44255422648` completed successfully on `feature/native-offline-craftcv` after the Education & Skills editor was added. The job passed:
+GitHub Actions run `44477070888` completed successfully for the initial expanded category/work-experience source before the subsequent integrated project and finishing-section commits. A newer run is required to certify the complete current branch. The older run `44255422648` also completed successfully after the original Education & Skills editor was added. The job passed:
 - `:app:testDebugUnitTest`
 - `:app:lintDebug`
 - `:app:assembleDebug`
@@ -72,15 +74,16 @@ The same run skipped release signing and signed AAB generation. Its artifact is 
 1. Back up existing CVs. Install the debug update over the existing debug build if possible; do not uninstall first.
 2. Create a CV and fill all four builder steps. Navigate Back/Continue, close the app, reopen and confirm autosave.
 3. Open Work Experience. Add two roles with different industry categories, employment types, locations, dates and achievements. Edit/remove one entry, return to the builder, reopen the screen, and verify it persists.
-4. Open Education & Skills. Add at least two qualifications (for example Intermediate and Bachelor's), then add Programming & Development, Finance & Accounting and Languages groups. Edit/remove one entry, save, return to the builder, reopen the screen, and verify it remains. Check that both PDF and DOCX show the grouped content.
-5. Open Templates and apply at least four different styles. Confirm the actual PDF design changes.
-6. Import JPG and PNG portraits; verify orientation and PDF inclusion/removal.
-7. Open Finished CV; confirm a nonblank A4 preview, including long multi-page content.
+4. Open Projects & Portfolio. Add an academic project and a personal project with role, category, tools, date, URL and outcomes. Edit/remove one and verify the data is retained.
+5. Open Education & Skills. Add at least two qualifications (for example Intermediate and Bachelor's), then add Programming & Development, Finance & Accounting and Languages groups. Edit/remove one entry, save, return to the builder, reopen the screen, and verify it remains. Check that both PDF and DOCX show the grouped content.
+6. Open Templates and apply at least four different styles. Confirm the actual PDF design changes.
+7. Import JPG and PNG portraits; verify orientation and PDF inclusion/removal.
+8. Open Finished CV; confirm a nonblank A4 preview, including long multi-page content.
 7. Save PDF and DOCX using Android's document picker. Open both in external compatible apps; share the PDF.
-9. Duplicate a CV, edit/delete the copy, and confirm the original remains unchanged after restart.
-10. Create and reopen a cover letter; export and open its PDF.
-11. Turn internet off and repeat native editing, templates, PDF and DOCX. These offline workflows should remain available.
-12. Turn internet on. Test AI summary, bullets and job matching; test a service failure and verify CV data is not changed unless the user applies a suggestion.
+10. Duplicate a CV, edit/delete the copy, and confirm the original remains unchanged after restart.
+11. Create and reopen a cover letter; export and open its PDF.
+12. Turn internet off and repeat native editing, templates, PDF and DOCX. These offline workflows should remain available.
+13. Turn internet on. Test AI summary, bullets and job matching; test a service failure and verify CV data is not changed unless the user applies a suggestion.
 12. Sign in to Cloud Account, create/edit/delete an online CV and open it on another browser/device. Confirm local offline CVs are not represented as synced.
 13. Verify the debug demo banner and UMP consent/privacy choices. Confirm no ad appears in editor, preview or exports.
 14. Test on a small Android screen and system Back from every page.
