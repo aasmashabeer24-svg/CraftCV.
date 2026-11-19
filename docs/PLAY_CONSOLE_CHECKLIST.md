@@ -82,8 +82,9 @@ Complete Data Safety after deciding which optional online features and ads are i
 ## 5. Store listing assets and metadata
 
 - [ ] Final app title (30-character limit), short description (80-character limit), full description, category, tags and contact details.
-- [ ] 512 × 512 PNG app icon (32-bit, alpha allowed, max 1 MB).
-- [ ] 1024 × 500 JPEG or 24-bit PNG feature graphic (no alpha).
+- [x] 512 × 512 PNG app icon generated (32-bit RGBA, 258 KB; download from the current ChatGPT file attachment before uploading to Play Console).
+- [x] 1024 × 500 PNG feature graphic generated (24-bit RGB, 74 KB; download from the current ChatGPT file attachment before uploading to Play Console).
+- [ ] Upload both PNG assets to the Play Console store listing after creating the app entry.
 - [ ] At least two real phone screenshots of the fixed app. Do not use the bug screenshots supplied before the fixes.
 - [ ] Store listing support email and website.
 - [ ] Countries / regions and free-or-paid choice.
