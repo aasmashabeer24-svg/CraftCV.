@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.CraftCV" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">#82D5BE</item>
+        <item name="colorOnPrimary">#083B38</item>
+        <item name="colorSecondary">#8CCFC0</item>
+        <item name="colorOnSecondary">#0A3D39</item>
+        <item name="colorSurface">#17272E</item>
+        <item name="colorOnSurface">#E7EFF1</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">#0D222B</item>
+        <item name="android:navigationBarColor">#0D222B</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>
