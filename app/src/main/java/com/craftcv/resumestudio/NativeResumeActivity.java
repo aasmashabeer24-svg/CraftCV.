@@ -64,6 +64,7 @@ public final class NativeResumeActivity extends Activity {
     private JSONArray educationEntries = new JSONArray();
     private JSONArray skillGroups = new JSONArray();
     private JSONArray experienceEntries = new JSONArray();
+    private JSONArray projectEntries = new JSONArray();
     private ImageView photoPreview;
     private TextView photoStatus;
     private LinearLayout content;
@@ -158,6 +159,13 @@ public final class NativeResumeActivity extends Activity {
         saveHandler.removeCallbacks(savePending);
         save();
         Intent intent=new Intent(this,WorkExperienceActivity.class);
+        intent.putExtra("resume_id",currentId);
+        startActivity(intent);
+    }
+    private void openProjects(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        Intent intent=new Intent(this,ProjectsActivity.class);
         intent.putExtra("resume_id",currentId);
         startActivity(intent);
     }
@@ -460,6 +468,12 @@ public final class NativeResumeActivity extends Activity {
 
         addSectionHeading(stepPanels[3],"Projects & finishing","Add your best projects, check the CV, then see the finished document.");
         addField(stepPanels[3],9);
+        ((View)inputs[9].getParent()).setVisibility(View.GONE);
+        TextView projectNote=heading("Add academic, personal, freelance or professional projects with your role, tools and outcomes.",12,0xFF66818A,false);
+        projectNote.setPadding(dp(5),dp(5),dp(5),dp(12));
+        stepPanels[3].addView(projectNote);
+        Button manageProjects=toolbarButton("Manage Projects & Portfolio",this::openProjects,true);
+        stepPanels[3].addView(manageProjects,new LinearLayout.LayoutParams(-1,dp(51)));
         Button check=toolbarButton("Check my resume",this::resumeCheck,false);
         LinearLayout.LayoutParams chk=new LinearLayout.LayoutParams(-1,dp(52));
         chk.topMargin=dp(12);stepPanels[3].addView(check,chk);
@@ -517,6 +531,7 @@ public final class NativeResumeActivity extends Activity {
             item.put("educationEntries",educationEntries);
             item.put("skillGroups",skillGroups);
             item.put("experienceEntries",experienceEntries);
+            item.put("projectEntries",projectEntries);
             for(int i=0;i<keys.length;i++)item.put(keys[i],inputs[i].getText().toString());
         } catch(Exception ignored){}
         return item;
@@ -533,6 +548,8 @@ public final class NativeResumeActivity extends Activity {
         if(skillGroups==null)skillGroups=new JSONArray();
         experienceEntries=item.optJSONArray("experienceEntries");
         if(experienceEntries==null)experienceEntries=new JSONArray();
+        projectEntries=item.optJSONArray("projectEntries");
+        if(projectEntries==null)projectEntries=new JSONArray();
         for(int i=0;i<keys.length;i++){
             String loaded=item.optString(keys[i],"");
             // Repair records created by the old duplicate bug, which wrote "(Copy)" as the person's name.
@@ -553,6 +570,7 @@ public final class NativeResumeActivity extends Activity {
         educationEntries=new JSONArray();
         skillGroups=new JSONArray();
         experienceEntries=new JSONArray();
+        projectEntries=new JSONArray();
         refreshPhoto();
         loading=true;
         style=preferences().getInt("default_style",0);
@@ -808,7 +826,10 @@ public final class NativeResumeActivity extends Activity {
             if(skillGroups==null)skillGroups=new JSONArray();
             experienceEntries=current.optJSONArray("experienceEntries");
             if(experienceEntries==null)experienceEntries=new JSONArray();
+            projectEntries=current.optJSONArray("projectEntries");
+            if(projectEntries==null)projectEntries=new JSONArray();
             if(inputs[6]!=null)inputs[6].setText(current.optString("experience",""));
+            if(inputs[9]!=null)inputs[9].setText(current.optString("projects",""));
             if(inputs[7]!=null)inputs[7].setText(current.optString("education",""));
             if(inputs[8]!=null)inputs[8].setText(current.optString("skills",""));
             loading=false;
