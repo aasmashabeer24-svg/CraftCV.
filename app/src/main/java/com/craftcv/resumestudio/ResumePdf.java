@@ -24,8 +24,8 @@ public final class ResumePdf {
         0xFF194C5D,0xFF3C584D,0xFF774960,0xFF303D48,0xFF274054,0xFF354458,
         0xFF417C69,0xFFB05241,0xFF3E5068,0xFF317071,0xFF906D59,0xFF252525
     };
-    private static final String[] KEYS = {"summary","experience","education","skills","projects"};
-    private static final String[] HEADINGS = {"PROFESSIONAL PROFILE","WORK EXPERIENCE","EDUCATION","CORE SKILLS","PROJECTS"};
+    private static final String[] KEYS = {"summary","experience","education","skills","projects","certifications","languages","awards","interests","references"};
+    private static final String[] HEADINGS = {"PROFESSIONAL PROFILE","WORK EXPERIENCE","EDUCATION","CORE SKILLS","PROJECTS","CERTIFICATIONS","LANGUAGES","AWARDS & ACHIEVEMENTS","INTERESTS","REFERENCES"};
 
     private static final class Writer {
         final PdfDocument pdf = new PdfDocument();
