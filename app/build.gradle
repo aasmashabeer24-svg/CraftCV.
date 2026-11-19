@@ -11,8 +11,8 @@ android {
         applicationId 'com.craftcv.resumestudio'
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '1.0.0'
+        versionCode 2
+        versionName '1.1.0'
     }
 
     signingConfigs {
@@ -29,8 +29,9 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // Live ads are OFF by default; the exact app ID and banner ID must
             // come from the owner's AdMob account during the signed release build.
             def liveAppId = System.getenv('CRAFTCV_ADMOB_APP_ID') ?: ''
@@ -39,7 +40,7 @@ android {
                 liveBannerId.matches('ca-app-pub-[0-9]{16}/[0-9]{10}') &&
                 !liveAppId.startsWith('ca-app-pub-3940256099942544') &&
                 !liveBannerId.startsWith('ca-app-pub-3940256099942544')
-            manifestPlaceholders = [craftcvAdmobAppId:configured?liveAppId:'ca-app-pub-3940256099942544~3347511713']
+            manifestPlaceholders = [craftcvAdmobAppId:configured?liveAppId:'ca-app-pub-0000000000000000~0000000000']
             buildConfigField 'boolean', 'ADMOB_ENABLED', configured?'true':'false'
             buildConfigField 'String', 'ADMOB_BANNER_UNIT_ID', configured?'"'+liveBannerId+'"':'""'
             if (System.getenv('CRAFTCV_KEYSTORE_PATH')) {
@@ -70,6 +71,8 @@ android {
 // editor, preview, PDF, Word or Cover Letter workflows.
 dependencies {
     implementation 'com.google.android.gms:play-services-ads:25.4.0'
+    implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.2.0'
     implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
