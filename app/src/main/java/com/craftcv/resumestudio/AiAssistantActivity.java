@@ -369,14 +369,60 @@ public final class AiAssistantActivity extends Activity {
         return fallback;
     }
 
+    private JSONArray experiencePayload() throws Exception {
+        JSONArray saved = currentResume.optJSONArray("experienceEntries");
+        JSONArray result = new JSONArray();
+        if (saved != null && saved.length() > 0) {
+            for (int i = 0; i < saved.length() && i < 8; i++) {
+                JSONObject row = saved.optJSONObject(i);
+                if (row == null) continue;
+                JSONObject item = new JSONObject();
+                item.put("title", limited(row.optString("title"), 120));
+                item.put("org", limited(row.optString("company"), 120));
+                item.put("details", limited(row.optString("details"), 1400));
+                item.put("category", limited(row.optString("category"), 100));
+                item.put("employmentType", limited(row.optString("employmentType"), 60));
+                item.put("location", limited(row.optString("location"), 120));
+                item.put("startDate", limited(row.optString("startDate"), 40));
+                item.put("endDate", limited(row.optString("endDate"), 40));
+                result.put(item);
+            }
+        } else {
+            result = selectedEntries("experienceEntries", "experience");
+        }
+        return result;
+    }
+
+    private JSONArray projectPayload() throws Exception {
+        JSONArray saved = currentResume.optJSONArray("projectEntries");
+        JSONArray result = new JSONArray();
+        if (saved != null && saved.length() > 0) {
+            for (int i = 0; i < saved.length() && i < 8; i++) {
+                JSONObject row = saved.optJSONObject(i);
+                if (row == null) continue;
+                JSONObject item = new JSONObject();
+                item.put("title", limited(row.optString("title"), 150));
+                item.put("org", limited(row.optString("organization"), 120));
+                item.put("details", limited(row.optString("details"), 1200));
+                item.put("category", limited(row.optString("category"), 100));
+                item.put("tools", limited(row.optString("tools"), 250));
+                item.put("link", limited(row.optString("link"), 300));
+                result.put(item);
+            }
+        } else {
+            result = selectedEntries("projectEntries", "projects");
+        }
+        return result;
+    }
+
     private JSONObject buildRequest(String apiMode) throws Exception {
         JSONObject request = new JSONObject();
         request.put("mode", apiMode);
         request.put("role", limited(role.getText().toString(), 150));
         request.put("summary", limited(summary.getText().toString(), 2500));
         request.put("skills", limited(skills.getText().toString(), 2500));
-        request.put("experience", selectedEntries("experienceEntries", "experience"));
-        request.put("projects", selectedEntries("projectEntries", "projects"));
+        request.put("experience", experiencePayload());
+        request.put("projects", projectPayload());
         request.put("jobDescription", limited(jobDescription.getText().toString(), 5000));
         return request;
     }
