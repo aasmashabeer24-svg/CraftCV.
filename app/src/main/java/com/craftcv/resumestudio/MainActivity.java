@@ -38,6 +38,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Optional online studio. NativeResumeActivity remains functional without this website. */
 public final class MainActivity extends Activity {
@@ -54,6 +56,7 @@ public final class MainActivity extends Activity {
     private boolean blobInProgress=false;
     private boolean pageFailed=false;
     private final Handler handler=new Handler(Looper.getMainLooper());
+    private final ExecutorService fileExecutor=Executors.newSingleThreadExecutor();
     private WebView webView;
     private LinearLayout root;
     private TextView message;
@@ -439,16 +442,28 @@ public final class MainActivity extends Activity {
         super.onActivityResult(request,result,data);
         if(request==SAVE_WEB_DOWNLOAD){
             if(result==RESULT_OK&&data!=null&&data.getData()!=null&&pendingWebFile!=null){
-                try(OutputStream output=getContentResolver().openOutputStream(data.getData())){
-                    if(output==null)throw new IllegalStateException("File destination unavailable");
-                    output.write(pendingWebFile);
-                    output.flush();
-                    Toast.makeText(this,"CraftCV file saved successfully",Toast.LENGTH_LONG).show();
-                }catch(Exception e){
-                    Toast.makeText(this,"File save failed: "+e.getMessage(),Toast.LENGTH_LONG).show();
-                }
+                final Uri destination=data.getData();
+                final byte[] bytes=pendingWebFile;
+                pendingWebFile=null;
+                fileExecutor.execute(()->{
+                    String failure=null;
+                    try(OutputStream output=getContentResolver().openOutputStream(destination)){
+                        if(output==null)throw new IllegalStateException("File destination unavailable");
+                        output.write(bytes);
+                        output.flush();
+                    }catch(Exception e){
+                        failure=e.getMessage()==null?"File save failed":e.getMessage();
+                    }
+                    final String error=failure;
+                    runOnUiThread(()->{
+                        if(isFinishing()||isDestroyed())return;
+                        Toast.makeText(this,error==null?"CraftCV file saved successfully":"File save failed: "+error,
+                            Toast.LENGTH_LONG).show();
+                    });
+                });
+            }else{
+                pendingWebFile=null;
             }
-            pendingWebFile=null;
             return;
         }
         if(request==PICK_FILE&&pendingFiles!=null){
@@ -478,6 +493,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        fileExecutor.shutdown();
         if(webView!=null){
             if(refreshLayout!=null)refreshLayout.removeView(webView);
             else root.removeView(webView);
