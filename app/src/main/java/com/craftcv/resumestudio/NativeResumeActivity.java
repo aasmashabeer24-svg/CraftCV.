@@ -52,8 +52,10 @@ public final class NativeResumeActivity extends Activity {
     private byte[] pendingPdf;
     private Uri lastSavedPdf;
     private final String[] fields = {"Full name", "Professional title", "Email", "Phone", "Location",
-            "Professional summary", "Work experience", "Education", "Skills", "Projects"};
-    private final String[] keys = {"name","role","email","phone","location","summary","experience","education","skills","projects"};
+            "Professional summary", "Work experience", "Education", "Skills", "Projects",
+            "Certifications", "Languages", "Awards & achievements", "Interests", "References"};
+    private final String[] keys = {"name","role","email","phone","location","summary","experience","education","skills","projects",
+            "certifications","languages","awards","interests","references"};
     private final EditText[] inputs = new EditText[keys.length];
     private final int[] colors = {0xFF194C5D,0xFF3C584D,0xFF774960,0xFF303D48,0xFF274054,0xFF354458,0xFF417C69,0xFFB05241,0xFF3E5068,0xFF317071,0xFF906D59,0xFF252525};
     private final String[] themes = {"Editorial","Modern","Creative","Minimal","Executive","Classic","Fresh","Bold","Academic","Compact","Elegant","Monochrome"};
@@ -206,7 +208,12 @@ public final class NativeResumeActivity extends Activity {
             "A few lines about your actual experience and goals",
             "Job title, organization, dates and achievements",
             "Qualification, institute and year","Separate your skills with commas or new lines",
-            "Project name and the work you completed"
+            "Project name and the work you completed",
+            "Certificates, licenses or completed courses",
+            "Urdu, English, Punjabi, Arabic...",
+            "Awards, scholarships or recognition",
+            "Relevant interests or community activities",
+            "References available upon request or professional referees"
         };
         input.setHint(hints[index]);
         card.addView(input,new LinearLayout.LayoutParams(-1,-2));
@@ -474,6 +481,8 @@ public final class NativeResumeActivity extends Activity {
         stepPanels[3].addView(projectNote);
         Button manageProjects=toolbarButton("Manage Projects & Portfolio",this::openProjects,true);
         stepPanels[3].addView(manageProjects,new LinearLayout.LayoutParams(-1,dp(51)));
+        addSectionHeading(stepPanels[3],"Professional finishing details","Add only relevant certifications, languages, awards, interests or references.");
+        for(int i=10;i<keys.length;i++)addField(stepPanels[3],i);
         Button check=toolbarButton("Check my resume",this::resumeCheck,false);
         LinearLayout.LayoutParams chk=new LinearLayout.LayoutParams(-1,dp(52));
         chk.topMargin=dp(12);stepPanels[3].addView(check,chk);
