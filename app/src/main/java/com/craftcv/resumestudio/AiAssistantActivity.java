@@ -137,7 +137,7 @@ public final class AiAssistantActivity extends Activity {
         summary=field(page,"Current summary",currentResume.optString("summary",""),true);
         skills=field(page,"Skills",currentResume.optString("skills",""),true);
         experience=field(page,"Experience notes",currentResume.optString("experience",""),true);
-        jobDescription=field(page,"Job description (optional)", "",true);
+        jobDescription=field(page,"Job description (required for comparison)", "",true);
         generate=button("Generate AI suggestions",true,v->generate());
         LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(53));
         gp.topMargin=dp(19);page.addView(generate,gp);
@@ -185,6 +185,16 @@ public final class AiAssistantActivity extends Activity {
         }
         int selected=mode.getSelectedItemPosition();
         final String apiMode=API_MODES[Math.max(0,Math.min(selected,API_MODES.length-1))];
+        if("review".equals(apiMode) && limited(jobDescription.getText().toString(),5000).isEmpty()){
+            jobDescription.setError("Paste the job description to compare your CV");
+            jobDescription.requestFocus();
+            return;
+        }
+        if("bullets".equals(apiMode) && limited(experience.getText().toString(),1400).isEmpty()){
+            experience.setError("Add real work experience notes first");
+            experience.requestFocus();
+            return;
+        }
         JSONObject request=new JSONObject();
         try{
             request.put("mode",apiMode);
@@ -219,9 +229,17 @@ public final class AiAssistantActivity extends Activity {
                 int code=connection.getResponseCode();
                 InputStream stream=code>=200&&code<300?connection.getInputStream():connection.getErrorStream();
                 String raw=stream==null?"":readResponse(stream);
-                if(code==429)throw new IllegalStateException("The free daily AI limit has been reached, or another request is still processing. Please retry later.");
-                if(code>=500)throw new IllegalStateException("AI is temporarily unavailable. Your CV data was not changed.");
-                if(code<200||code>=300)throw new IllegalStateException("Online AI service unavailable (HTTP "+code+")");
+                if(code<200||code>=300){
+                    String serverMessage="";
+                    try{
+                        JSONObject errorBody=new JSONObject(raw);
+                        serverMessage=errorBody.optString("error",errorBody.optString("message",""));
+                    }catch(Exception ignored){}
+                    if(code==429)throw new IllegalStateException(serverMessage.isEmpty()?"The AI daily request limit is reached or the service is busy. Please retry later.":serverMessage);
+                    if(code>=500)throw new IllegalStateException("AI is temporarily unavailable. Your CV data was not changed. Please retry later.");
+                    if(code==400 && !serverMessage.isEmpty())throw new IllegalStateException(serverMessage);
+                    throw new IllegalStateException("Online AI service unavailable (HTTP "+code+")");
+                }
                 result=limited(new JSONObject(raw).optString("text",""),24000);
                 if(result.isEmpty())throw new IllegalStateException("No suggestions returned");
             }catch(Exception e){err=e.getMessage()==null?"Connection failed":e.getMessage();}
