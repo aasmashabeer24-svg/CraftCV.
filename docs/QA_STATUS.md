@@ -35,7 +35,7 @@ The Online Studio deployment is ready and its latest QA snapshot reports no fron
 | Native PDF preview/export/share | A4 PDF generation, renderer, Android Save As and open/share | Compile + lint passed | Long multi-page PDF, external viewer and print test |
 | Native DOCX export | Editable Office Open XML ZIP document | JUnit verifies ZIP parts, XML escaping and content | Open in Microsoft Word / Google Docs on Android and desktop |
 | Cover letter | Offline editor and PDF export | Compile + lint passed | Save/reopen/export test on phone |
-| Native AI Assistant | Optional HTTPS summary, bullets and job-description review; apply only after confirmation | Compile + lint passed; endpoint exists | Live request, failure handling, cost/rate protection and phone test |
+| Native AI Assistant | Optional HTTPS summary, bullets and job-description review; apply only after confirmation | Compile + lint passed; backend has a shared 100-request-per-UTC-day compare-and-swap quota | Live request, 429 behavior, per-user abuse controls and phone test |
 | Cloud Account | Separate native entry opens authenticated Online Studio | Compile + lint passed; cloud APIs require auth | Live sign-in, create/edit/delete and cross-device test |
 | Native-to-cloud sync | Not implemented | Not applicable | Offline native CVs remain local; manual online upload required |
 | Online Studio | Optional WebView and browser; separate Build, Templates, Finished CV, AI and Cloud pages; multiple education entries and grouped skill categories with quick-add examples | Latest AppDeploy status ready; frontend/network errors empty | WebView login, Android file picker and blob downloads on phone |
@@ -60,7 +60,7 @@ The same run skipped release signing and signed AAB generation. Its artifact is 
 - The native banner is placed on the dashboard only; no ads are placed in the editor, preview, PDF, Word or cover-letter documents.
 - UMP consent is requested before ad requests; privacy options are displayed when required.
 - Before release, configure AdMob privacy messages, publish a privacy policy, and complete Play Console Contains Ads and Data safety declarations.
-- The AI endpoint accepts only the requested role, summary, skills, experience notes and optional job description from the native screen; it does not send the name, email, phone or photo. **The current AI route is not authenticated or rate-limited in the backend source; add abuse/cost protection before public production use.**
+- The AI endpoint accepts only the requested role, summary, skills, experience notes and optional job description from the native screen; it does not send the name, email, phone or photo. A shared compare-and-swap quota now caps the service at 100 requests per UTC day. The route remains unauthenticated and the limit is global rather than per user; verify 429 behavior and decide whether stronger per-user protection is needed before production.
 - Cloud resume CRUD routes use authenticated requests and user-scoped storage. Native offline resumes do not automatically sync to cloud.
 
 ## Required physical Android acceptance test
