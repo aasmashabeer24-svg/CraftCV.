@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
@@ -406,6 +407,9 @@ public final class NativeResumeActivity extends Activity {
         LinearLayout allSteps=new LinearLayout(this);
         allSteps.setOrientation(LinearLayout.VERTICAL);
         allSteps.setPadding(dp(16),dp(24),dp(16),dp(25));
+        // Center short steps (especially Education & Skills) in the available
+        // workspace instead of leaving all unused space below the form.
+        allSteps.setGravity(Gravity.CENTER_VERTICAL);
         formScroll.addView(allSteps);
         for(int i=0;i<stepPanels.length;i++){
             stepPanels[i]=new LinearLayout(this);
@@ -453,6 +457,25 @@ public final class NativeResumeActivity extends Activity {
         footer.setPadding(dp(16),dp(8),dp(16),dp(13));
         footer.setBackground(background(Color.WHITE,0,0));
         root.addView(footer);
+        // Hide navigation while the Android keyboard is open. This gives
+        // multiline fields the full visible area and prevents the footer from
+        // sitting over the last lines of text on compact screens.
+        if(android.os.Build.VERSION.SDK_INT >= 30) {
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                boolean keyboardVisible = insets.isVisible(android.view.WindowInsets.Type.ime());
+                footer.setVisibility(keyboardVisible ? View.GONE : View.VISIBLE);
+                return insets;
+            });
+        } else {
+            final int[] fullHeight = {0};
+            root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+                int height = root.getHeight();
+                if (fullHeight[0] == 0) fullHeight[0] = height;
+                boolean keyboardVisible = height < fullHeight[0] - dp(180);
+                if (!keyboardVisible) fullHeight[0] = height;
+                footer.setVisibility(keyboardVisible ? View.GONE : View.VISIBLE);
+            });
+        }
         status=heading("Your progress saves on this phone.",11,0xFF478476,false);
         status.setGravity(Gravity.CENTER);
         footer.addView(status,new LinearLayout.LayoutParams(-1,dp(23)));
