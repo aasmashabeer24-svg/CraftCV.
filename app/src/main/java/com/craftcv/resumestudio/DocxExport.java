@@ -40,8 +40,8 @@ public final class DocxExport {
         out.closeEntry();
     }
     public static byte[] create(JSONObject resume)throws Exception{
-        String[] keys={"summary","experience","education","skills","projects"};
-        String[] labels={"PROFESSIONAL SUMMARY","WORK EXPERIENCE","EDUCATION","SKILLS","PROJECTS"};
+        String[] keys={"summary","experience","education","skills","projects","certifications","languages","awards","interests","references"};
+        String[] labels={"PROFESSIONAL SUMMARY","WORK EXPERIENCE","EDUCATION","SKILLS","PROJECTS","CERTIFICATIONS","LANGUAGES","AWARDS & ACHIEVEMENTS","INTERESTS","REFERENCES"};
         StringBuilder doc=new StringBuilder();
         doc.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
         doc.append("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>");
