@@ -269,6 +269,11 @@ public final class MainActivity extends Activity {
         WebSettings settings=webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // Respect the HTML device-width viewport instead of laying out a
+        // desktop-width page and shrinking it to fit a phone screen.
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(false);
+        settings.setTextZoom(100);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
