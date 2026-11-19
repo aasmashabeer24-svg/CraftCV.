@@ -34,8 +34,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 /** Optional online studio. NativeResumeActivity remains functional without this website. */
 public final class MainActivity extends Activity {
@@ -55,6 +57,9 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private LinearLayout root;
     private TextView message;
+    private Button retryButton;
+    private ProgressBar loadProgress;
+    private SwipeRefreshLayout refreshLayout;
     private android.webkit.ValueCallback<Uri[]> pendingFiles;
 
     @Override public void onCreate(Bundle state) {
@@ -79,16 +84,40 @@ public final class MainActivity extends Activity {
         addAction(toolbar,"‹",v->navigateBackSafely());
         addAction(toolbar,"Online Studio",v->webView.loadUrl(HOME));
         addAction(toolbar,"Save PDF",v->printWebResume());
-        addAction(toolbar,"Refresh",v->{if(webView!=null)webView.reload();else recreate();});
+        addAction(toolbar,"Refresh",v->retryOnline());
+        loadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        loadProgress.setMax(100);
+        loadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFF63C3A7));
+        loadProgress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(0xFF63C3A7));
+        loadProgress.setVisibility(View.GONE);
+        root.addView(loadProgress,new LinearLayout.LayoutParams(-1,dp(3)));
         message=new TextView(this);
         message.setTextColor(Color.DKGRAY);
         message.setPadding(dp(18),dp(13),dp(18),dp(13));
         message.setText("Opening online CraftCV…");
         message.setVisibility(View.VISIBLE);
         root.addView(message);
+        retryButton=new Button(this);
+        retryButton.setText("Retry");
+        retryButton.setAllCaps(false);
+        retryButton.setTextColor(Color.WHITE);
+        retryButton.setBackgroundColor(Color.rgb(35,110,100));
+        retryButton.setMinHeight(dp(48));
+        retryButton.setVisibility(View.GONE);
+        retryButton.setOnClickListener(v->retryOnline());
+        LinearLayout.LayoutParams retryParams=new LinearLayout.LayoutParams(-1,dp(48));
+        retryParams.setMargins(dp(16),dp(6),dp(16),dp(8));
+        root.addView(retryButton,retryParams);
+        refreshLayout=new SwipeRefreshLayout(this);
+        refreshLayout.setColorSchemeColors(0xFF236E64,0xFF143D4D);
+        refreshLayout.setOnRefreshListener(()->{
+            if(webView!=null){pageFailed=false;retryButton.setVisibility(View.GONE);webView.reload();}
+            else retryOnline();
+        });
+        root.addView(refreshLayout,new LinearLayout.LayoutParams(-1,0,1));
         webView=new WebView(this);
         webView.setBackgroundColor(0xFFF5F8F9);
-        root.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
+        refreshLayout.addView(webView,new SwipeRefreshLayout.LayoutParams(-1,-1));
         configure();
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
@@ -245,6 +274,31 @@ public final class MainActivity extends Activity {
         if(message==null)return;
         message.setText(status);
         message.setVisibility(View.VISIBLE);
+        if(retryButton!=null)retryButton.setVisibility(View.GONE);
+    }
+    private void showError(String status){
+        showStatus(status);
+        if(retryButton!=null)retryButton.setVisibility(View.VISIBLE);
+        if(loadProgress!=null)loadProgress.setVisibility(View.GONE);
+        if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+    }
+    private void retryOnline(){
+        pageFailed=false;
+        if(retryButton!=null)retryButton.setVisibility(View.GONE);
+        if(webView==null){recreate();return;}
+        if(!isNetworkAvailable()){
+            showError("You are offline. Your saved CVs are safe. Connect to the internet and tap Retry.");
+            return;
+        }
+        webView.loadUrl(HOME);
+    }
+    private boolean isNetworkAvailable(){
+        android.net.ConnectivityManager manager=(android.net.ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(manager==null)return false;
+        android.net.Network network=manager.getActiveNetwork();
+        if(network==null)return false;
+        android.net.NetworkCapabilities caps=manager.getNetworkCapabilities(network);
+        return caps!=null&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
     }
     /**
      * A successful HTTP load is not proof the React UI rendered. On older Android
@@ -261,7 +315,7 @@ public final class MainActivity extends Activity {
             if("true".equals(result)){
                 message.setVisibility(View.GONE);
             }else{
-                showStatus("Online Studio did not finish displaying. Tap Refresh above, or press Back to use your offline CV builder. Your saved CVs are safe.");
+                showError("Online Studio did not finish displaying. Tap Retry or pull down to refresh. Your offline CVs are safe.");
             }
         });
     }
@@ -274,6 +328,9 @@ public final class MainActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(false);
         settings.setTextZoom(100);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
@@ -286,6 +343,9 @@ public final class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient(){
             @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
                 pageFailed=false;
+                if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                if(retryButton!=null)retryButton.setVisibility(View.GONE);
+                if(loadProgress!=null){loadProgress.setProgress(0);loadProgress.setVisibility(View.VISIBLE);}
                 showStatus("Opening CraftCV Online Studio…");
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
@@ -308,7 +368,8 @@ public final class MainActivity extends Activity {
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
                 if(request.isForMainFrame()) {
                     pageFailed=true;
-                    showStatus("Online Studio could not load. Tap Refresh above, or press Back for the offline CV builder. Your saved CVs remain safe.");
+                    if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                    showError("Online Studio could not load. Check your connection and tap Retry. Your offline CVs remain safe.");
                 }
             }
             @Override public void onPageFinished(WebView view,String url) {
@@ -317,13 +378,16 @@ public final class MainActivity extends Activity {
                     if(!pageFailed)handler.postDelayed(()->verifyOnlineScreen(view),1500);
                 }else if(url==null||url.startsWith("about:blank")){
                     pageFailed=true;
-                    showStatus("Page unavailable. Tap Refresh or Back to return to the offline CV builder.");
+                    showError("Page unavailable. Tap Retry or Back to return to the offline CV builder.");
                 }
+                if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                if(loadProgress!=null)loadProgress.setVisibility(View.GONE);
             }
             @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){
                 pageFailed=true;
-                showStatus("Online Studio stopped responding. Tap Refresh to reopen it, or Back to use your offline CV.");
-                root.removeView(view);
+                showError("Online Studio stopped responding. Tap Retry to reopen it, or Back to use your offline CV.");
+                if(refreshLayout!=null)refreshLayout.removeView(view);
+                else root.removeView(view);
                 view.destroy();
                 webView=null;
                 return true;
@@ -331,10 +395,15 @@ public final class MainActivity extends Activity {
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
                 pageFailed=true;
-                showStatus("Secure connection failed. Tap Back to return to the offline CV builder.");
+                showError("Secure connection failed. Check your device date and internet connection, then tap Retry.");
             }
         });
         webView.setWebChromeClient(new WebChromeClient(){
+            @Override public void onProgressChanged(WebView view,int progress){
+                if(loadProgress==null)return;
+                loadProgress.setProgress(progress);
+                loadProgress.setVisibility(progress>=100?View.GONE:View.VISIBLE);
+            }
             @Override public boolean onShowFileChooser(WebView view,android.webkit.ValueCallback<Uri[]> callback,FileChooserParams params) {
                 if(pendingFiles!=null)pendingFiles.onReceiveValue(null);
                 pendingFiles=callback;
@@ -409,7 +478,11 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
-        if(webView!=null){root.removeView(webView);webView.destroy();webView=null;}
+        if(webView!=null){
+            if(refreshLayout!=null)refreshLayout.removeView(webView);
+            else root.removeView(webView);
+            webView.destroy();webView=null;
+        }
         super.onDestroy();
     }
 }
