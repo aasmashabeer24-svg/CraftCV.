@@ -63,6 +63,7 @@ public final class NativeResumeActivity extends Activity {
     // Structured records are mirrored to the legacy text fields for existing exports.
     private JSONArray educationEntries = new JSONArray();
     private JSONArray skillGroups = new JSONArray();
+    private JSONArray experienceEntries = new JSONArray();
     private ImageView photoPreview;
     private TextView photoStatus;
     private LinearLayout content;
@@ -150,6 +151,13 @@ public final class NativeResumeActivity extends Activity {
         saveHandler.removeCallbacks(savePending);
         save();
         Intent intent=new Intent(this,EducationSkillsActivity.class);
+        intent.putExtra("resume_id",currentId);
+        startActivity(intent);
+    }
+    private void openWorkExperience(){
+        saveHandler.removeCallbacks(savePending);
+        save();
+        Intent intent=new Intent(this,WorkExperienceActivity.class);
         intent.putExtra("resume_id",currentId);
         startActivity(intent);
     }
@@ -430,6 +438,12 @@ public final class NativeResumeActivity extends Activity {
         addSectionHeading(stepPanels[1],"Profile & experience","Summarize your strengths and add only genuine work, freelance or internship experience.");
         addField(stepPanels[1],5);
         addField(stepPanels[1],6);
+        ((View)inputs[6].getParent()).setVisibility(View.GONE);
+        TextView experienceNote=heading("Add each job, internship, freelance role or volunteer position separately. Your existing work history is preserved.",12,0xFF66818A,false);
+        experienceNote.setPadding(dp(5),dp(5),dp(5),dp(12));
+        stepPanels[1].addView(experienceNote);
+        Button manageExperience=toolbarButton("Manage Work Experience",this::openWorkExperience,true);
+        stepPanels[1].addView(manageExperience,new LinearLayout.LayoutParams(-1,dp(51)));
 
         addSectionHeading(stepPanels[2],"Education & skills","Add your qualifications and the skills relevant to your target job.");
         addField(stepPanels[2],7);
@@ -502,6 +516,7 @@ public final class NativeResumeActivity extends Activity {
             item.put("photoPath",photoPath);
             item.put("educationEntries",educationEntries);
             item.put("skillGroups",skillGroups);
+            item.put("experienceEntries",experienceEntries);
             for(int i=0;i<keys.length;i++)item.put(keys[i],inputs[i].getText().toString());
         } catch(Exception ignored){}
         return item;
@@ -516,6 +531,8 @@ public final class NativeResumeActivity extends Activity {
         if(educationEntries==null)educationEntries=new JSONArray();
         skillGroups=item.optJSONArray("skillGroups");
         if(skillGroups==null)skillGroups=new JSONArray();
+        experienceEntries=item.optJSONArray("experienceEntries");
+        if(experienceEntries==null)experienceEntries=new JSONArray();
         for(int i=0;i<keys.length;i++){
             String loaded=item.optString(keys[i],"");
             // Repair records created by the old duplicate bug, which wrote "(Copy)" as the person's name.
@@ -535,6 +552,7 @@ public final class NativeResumeActivity extends Activity {
         photoPath="";
         educationEntries=new JSONArray();
         skillGroups=new JSONArray();
+        experienceEntries=new JSONArray();
         refreshPhoto();
         loading=true;
         style=preferences().getInt("default_style",0);
@@ -788,6 +806,9 @@ public final class NativeResumeActivity extends Activity {
             if(educationEntries==null)educationEntries=new JSONArray();
             skillGroups=current.optJSONArray("skillGroups");
             if(skillGroups==null)skillGroups=new JSONArray();
+            experienceEntries=current.optJSONArray("experienceEntries");
+            if(experienceEntries==null)experienceEntries=new JSONArray();
+            if(inputs[6]!=null)inputs[6].setText(current.optString("experience",""));
             if(inputs[7]!=null)inputs[7].setText(current.optString("education",""));
             if(inputs[8]!=null)inputs[8].setText(current.optString("skills",""));
             loading=false;
