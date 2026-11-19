@@ -1,7 +1,7 @@
 name: Android CI & release bundle
 on:
   push:
-    branches: [main]
+    branches: [main, feature/native-offline-craftcv]
   pull_request:
   workflow_dispatch:
 jobs:
