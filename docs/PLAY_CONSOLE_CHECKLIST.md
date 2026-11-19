@@ -41,21 +41,21 @@ Debug builds use Google's demo IDs only. If production ads are enabled, review t
 
 ## 3. Policy and privacy blockers
 
-### Privacy policy — not yet published
+### Privacy policy — draft created, not yet published
 
 Every Play app needs an active, public HTTPS privacy-policy webpage and a privacy link within the app. The policy must describe this app's real data flows and service providers; it cannot be a generic template or a PDF-only link.
 
-The policy must be finalized after the developer's public/publisher name and support contact are confirmed. The current repository does not contain a published privacy-policy URL or an in-app privacy page.
+A source draft is available at `docs/PRIVACY_POLICY_DRAFT.md`. It accurately distinguishes local offline CVs, optional cloud CV uploads, selected AI text processing and Google Mobile Ads / UMP. The draft is intentionally marked NOT FOR PUBLICATION: it still needs the public publisher identity and a monitored support email, plus a finalized retention/deletion policy. The current repository does not contain a published privacy-policy URL or an in-app privacy page.
 
 ### Account deletion — not yet implemented
 
 The optional Online Studio Cloud Account flow allows users to sign in / create an account. Deleting an individual cloud CV is not the same as deleting the account. Google requires a readily discoverable in-app deletion path and an external web deletion-request URL, and associated account data must actually be deleted.
 
-The AppDeploy Auth SDK reference available to this project exposes sign-in, getUser and sign-out, but no account-delete method. Do not claim account deletion is complete until a supported provider deletion path is implemented and tested. If the account feature remains in the Android release, resolve this before submission. Another release strategy is to remove account creation/cloud access from the Play build until deletion is supported.
+The AppDeploy Auth SDK reference available to this project exposes sign-in, getUser and sign-out, but no account-delete method. The user can delete individual cloud CVs, but that does not delete the authentication account. **This remains a hard Play release blocker.** Do not claim account deletion is complete until a supported provider deletion path is implemented and tested. If the account feature remains in the Android release, resolve this before submission. Another release strategy is to remove account creation/cloud access from the Play build until deletion is supported.
 
 ### AI endpoint — bounded, but still public
 
-The Online Studio backend now applies a shared compare-and-swap quota of 100 AI requests per UTC day. The native screen gives a clear message when the daily limit is reached. The endpoint remains unauthenticated and the quota is global to the app rather than per user; this is a cost guardrail, not identity-based abuse prevention. The native AI screen sends the selected role, summary, skills, experience notes and optional job description; it does not send name, email, phone or photo. The AI service is an online third-party processor. Verify 429 behavior and disclose this data flow in the final privacy policy before production.
+The Online Studio backend applies a shared compare-and-swap quota of 100 AI requests per UTC day. The endpoint remains unauthenticated and the quota is global to the app rather than per user; this is a cost guardrail, not identity-based abuse prevention. Online AI now supports summary rewriting, work-experience bullets, project descriptions and job-description comparison with input validation and clearer provider error responses. The native AI screen currently supports summary, experience bullets and job-description review. Both AI paths send selected CV text only, not name, email, phone or photo. The AI service is an online third-party processor. Verify live responses, 429 behavior and disclose this data flow in the final privacy policy before production.
 
 ### Data Safety — form not completed
 
@@ -100,12 +100,12 @@ Complete Data Safety after deciding which optional online features and ads are i
 
 ## 7. Current source-level release blockers
 
-1. No published, app-specific privacy policy or verified support contact.
-2. Cloud account creation is available, but full account deletion is not supported by the current Auth SDK integration.
-3. AI endpoint is unauthenticated and has no rate limiting.
+1. Privacy policy draft exists but is not published; the public support email and publisher identity are not confirmed.
+2. Cloud account creation is available, but full account deletion is not supported by the current Auth SDK integration. This is a release blocker unless Cloud Account creation is removed from the Play build.
+3. AI endpoint has a shared daily quota but remains unauthenticated and does not provide per-user abuse protection.
 4. Signed AAB has not been built; release signing secrets are not yet confirmed.
-5. Store assets and Play Console declarations are not complete.
-6. Latest native UI fixes still require CI completion and real-device verification.
+5. Play Console declarations, real device screenshots and final store assets still need submission/verification.
+6. Latest native UI and structured work-experience changes still require CI completion and real-device verification.
 
 ## Official Google Play references
 
