@@ -37,16 +37,28 @@ public final class EducationSkillsActivity extends Activity {
     private static final String KEY_ITEMS = "resumes";
     private static final String KEY_CURRENT = "current";
     private static final String[] QUALIFICATIONS = {
-        "Matric / SSC", "O Levels / A Levels", "Intermediate / HSSC", "FA / FSc / ICS / I.Com",
-        "DAE / Diploma", "Vocational / Trade Certificate", "Associate Degree",
-        "Bachelor's / BS", "B.Com / BBA", "CA / ACCA / ICMA",
-        "Master's / MA / MSc / MBA", "MS / MPhil", "PhD",
-        "MBBS / BDS / Allied Health", "LLB / Law", "Professional Certificate", "Other"
+        "Primary / Middle School", "Matric / SSC", "O Levels / A Levels",
+        "Intermediate / HSSC", "FA / FSc / ICS / I.Com", "F.A. / F.Sc. Pre-Medical",
+        "F.Sc. Pre-Engineering", "ICS / Computer Science", "I.Com / Commerce",
+        "DAE / Diploma of Associate Engineering", "Higher National Diploma",
+        "Vocational / Trade Certificate", "Certificate / Short Course",
+        "Associate Degree", "Bachelor's / BS", "B.Com / BBA", "BSc Engineering",
+        "CA / ACCA / ICMA", "Master's / MA / MSc / MBA", "MS / MPhil",
+        "Postgraduate Diploma", "PGCert / PGDip", "PhD / Doctorate",
+        "MBBS / BDS / DPT / Allied Health", "Nursing / Pharmacy", "LLB / Law",
+        "Architecture / Design", "Professional Certificate",
+        "Religious / Madrasa Qualification", "Other / Custom"
     };
     private static final String[] SKILL_CATEGORIES = {
-        "Technical Skills", "Soft Skills", "Tools & Software", "Business Skills",
-        "Creative Skills", "Languages", "Healthcare Skills", "Engineering Skills",
-        "Education & Training", "Customer Service", "Other / Custom"
+        "Programming & Development", "IT & Technical Support", "Data & Analytics",
+        "Cybersecurity", "Cloud & DevOps", "Software Testing & QA", "Database Management",
+        "Networking", "Soft Skills", "Leadership & Management", "Project Management",
+        "Tools & Software", "Finance & Accounting", "Business & Administration",
+        "Sales & Business Development", "Customer Service", "Marketing & Social Media",
+        "Design & UX", "Creative & Multimedia", "Writing & Content",
+        "Education & Training", "Healthcare", "Engineering & Trades",
+        "Research & Analysis", "Languages", "Logistics & Supply Chain",
+        "Hospitality & Retail", "Other / Custom"
     };
 
     private final ArrayList<JSONObject> education = new ArrayList<>();
