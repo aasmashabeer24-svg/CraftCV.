@@ -2,24 +2,30 @@ package com.craftcv.resumestudio;
 
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
+import android.util.Base64;
+import android.os.Handler;
+import android.os.Looper;
+import android.content.ClipData;
+import java.io.OutputStream;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.net.ConnectivityManager;
-import android.net.Network;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
-import android.webkit.DownloadListener;
 import android.webkit.SslErrorHandler;
-import android.net.http.SslError;
+import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -28,152 +34,306 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.FrameLayout;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdSize;
-import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.AdListener;
-import com.google.android.gms.ads.MobileAds;
-import com.google.android.ump.ConsentInformation;
-import com.google.android.ump.ConsentRequestParameters;
-import com.google.android.ump.UserMessagingPlatform;
-import android.webkit.URLUtil;
-import android.content.ClipData;
-import android.content.ClipboardManager;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class MainActivity extends Activity {
+/** Optional online studio. NativeResumeActivity remains functional without this website. */
+public final class MainActivity extends Activity {
+    /** Optional initial online workflow, e.g. "cloud" for the Cloud Account screen. */
+    public static final String EXTRA_START_PAGE = "craftcv_start_online_page";
     private static final String HOME = "https://craftcv-hees13.v2.appdeploy.ai/";
     private static final String HOST = "craftcv-hees13.v2.appdeploy.ai";
     private static final int PICK_FILE = 301;
-    // Official Google test unit: never replace with a partner-bidding ID for direct AdMob.
-    private static final String TEST_BANNER_ID = "ca-app-pub-3940256099942544/6300978111";
+    private static final int SAVE_WEB_DOWNLOAD = 302;
+    private static final int MAX_BLOB_BYTES = 8 * 1024 * 1024;
+    private byte[] pendingWebFile;
+    private String pendingWebMime;
+    private String pendingWebName;
+    private boolean blobInProgress=false;
+    private boolean pageFailed=false;
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private final ExecutorService fileExecutor=Executors.newSingleThreadExecutor();
     private WebView webView;
-    private FrameLayout bannerContainer;
-    private AdView bannerAd;
-    private ConsentInformation consentInformation;
-    private boolean adsStarted = false;
     private LinearLayout root;
     private TextView message;
+    private Button retryButton;
+    private ProgressBar loadProgress;
+    private SwipeRefreshLayout refreshLayout;
     private android.webkit.ValueCallback<Uri[]> pendingFiles;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(18,56,70));
         getWindow().setNavigationBarColor(Color.rgb(18,56,70));
-        root = new LinearLayout(this);
+        root=new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
         setContentView(root);
-        if (Build.VERSION.SDK_INT >= 35) {
-            root.setOnApplyWindowInsetsListener((v, insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+        if(Build.VERSION.SDK_INT>=35) {
+            root.setOnApplyWindowInsetsListener((v,insets)->{
+                android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars());
                 v.setPadding(bars.left,bars.top,bars.right,bars.bottom);
                 return insets;
             });
         }
-        LinearLayout toolbar = new LinearLayout(this);
+        LinearLayout toolbar=new LinearLayout(this);
         toolbar.setBackgroundColor(Color.rgb(18,56,70));
-        toolbar.setPadding(dp(8),dp(5),dp(8),dp(5));
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        root.addView(toolbar,new LinearLayout.LayoutParams(-1,dp(46)));
-        addAction(toolbar,"‹",v -> { if (webView.canGoBack()) webView.goBack(); else webView.loadUrl(HOME); });
-        addAction(toolbar,"CraftCV",v -> webView.loadUrl(HOME));
-        addAction(toolbar,"↻",v -> webView.reload());
-        addAction(toolbar,"Share",v -> share());
-        addAction(toolbar,"Privacy",v -> openExternal(HOME+"privacy.html"));
-        message = new TextView(this);
+        root.addView(toolbar,new LinearLayout.LayoutParams(-1,dp(50)));
+        addAction(toolbar,"‹",v->navigateBackSafely());
+        addAction(toolbar,"Online Studio",v->webView.loadUrl(HOME));
+        addAction(toolbar,"Save PDF",v->printWebResume());
+        addAction(toolbar,"Refresh",v->retryOnline());
+        loadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        loadProgress.setMax(100);
+        loadProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFF63C3A7));
+        loadProgress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(0xFF63C3A7));
+        loadProgress.setVisibility(View.GONE);
+        root.addView(loadProgress,new LinearLayout.LayoutParams(-1,dp(3)));
+        message=new TextView(this);
         message.setTextColor(Color.DKGRAY);
-        message.setPadding(dp(22),dp(16),dp(22),dp(16));
-        message.setGravity(Gravity.CENTER);
-        message.setVisibility(View.GONE);
+        message.setPadding(dp(18),dp(13),dp(18),dp(13));
+        message.setText("Opening online CraftCV…");
+        message.setVisibility(View.VISIBLE);
         root.addView(message);
-        webView = new WebView(this);
-        root.addView(webView,new LinearLayout.LayoutParams(-1,0,1));
+        retryButton=new Button(this);
+        retryButton.setText("Retry");
+        retryButton.setAllCaps(false);
+        retryButton.setTextColor(Color.WHITE);
+        retryButton.setBackgroundColor(Color.rgb(35,110,100));
+        retryButton.setMinHeight(dp(48));
+        retryButton.setVisibility(View.GONE);
+        retryButton.setOnClickListener(v->retryOnline());
+        LinearLayout.LayoutParams retryParams=new LinearLayout.LayoutParams(-1,dp(48));
+        retryParams.setMargins(dp(16),dp(6),dp(16),dp(8));
+        root.addView(retryButton,retryParams);
+        refreshLayout=new SwipeRefreshLayout(this);
+        refreshLayout.setColorSchemeColors(0xFF236E64,0xFF143D4D);
+        refreshLayout.setOnRefreshListener(()->{
+            if(webView!=null){pageFailed=false;retryButton.setVisibility(View.GONE);webView.reload();}
+            else retryOnline();
+        });
+        root.addView(refreshLayout,new LinearLayout.LayoutParams(-1,0,1));
+        webView=new WebView(this);
+        webView.setBackgroundColor(0xFFF5F8F9);
+        refreshLayout.addView(webView,new android.view.ViewGroup.LayoutParams(-1,-1));
         configure();
-        bannerContainer = new FrameLayout(this);
-        bannerContainer.setVisibility(View.GONE);
-        root.addView(bannerContainer, new LinearLayout.LayoutParams(-1, -2));
-        initializeConsentAndTestAds();
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
-                () -> {
-                    if (webView != null && webView.canGoBack()) webView.goBack();
-                    else finish();
-                }
+                this::navigateBackSafely);
+        }
+        String start=getIntent().getStringExtra(EXTRA_START_PAGE);
+        String route="cloud".equals(start)?"#cloud":"ai".equals(start)?"#ai":"";
+        webView.loadUrl(HOME+route);
+    }
+    private int dp(int value){return Math.round(getResources().getDisplayMetrics().density*value);}
+    private void addAction(LinearLayout bar,String label,View.OnClickListener action) {
+        Button button=new Button(this);
+        button.setText(label);
+        button.setTextSize(label.equals("Online Studio")?15:12);
+        button.setAllCaps(false);
+        button.setTextColor(Color.WHITE);
+        button.setBackgroundColor(Color.TRANSPARENT);
+        button.setOnClickListener(action);
+        bar.addView(button,new LinearLayout.LayoutParams(0,-1,label.equals("Online Studio")?2:1));
+    }
+    private boolean trusted(Uri uri) {
+        return "https".equalsIgnoreCase(uri.getScheme()) && HOST.equalsIgnoreCase(uri.getHost());
+    }
+    private void openExternal(String url) {
+        try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url))); }
+        catch(ActivityNotFoundException error){Toast.makeText(this,"No browser found",Toast.LENGTH_LONG).show();}
+    }
+    private void printWebResume(){
+        if(webView==null || webView.getUrl()==null || !trusted(Uri.parse(webView.getUrl()))){
+            Toast.makeText(this,"Open CraftCV first before printing",Toast.LENGTH_LONG).show();
+            return;
+        }
+        // A WebView on Home/Design/Library does not mount the resume paper.
+        // Navigate to the real CV first, then print only after React has rendered it.
+        String fragment=Uri.parse(webView.getUrl()).getFragment();
+        if(!"cv-preview".equals(fragment)){
+            webView.evaluateJavascript(
+                "(function(){window.location.hash='cv-preview';return true;})()",
+                result->handler.postDelayed(this::printVisibleWebResume,900)
             );
+        }else{
+            printVisibleWebResume();
+        }
+    }
+    private void printVisibleWebResume(){
+        if(webView==null || webView.getUrl()==null || !trusted(Uri.parse(webView.getUrl()))){
+            Toast.makeText(this,"Online CV is not available",Toast.LENGTH_LONG).show();
+            return;
+        }
+        String script="(function(){var paper=document.getElementById('resume-paper');"
+            +"return !!paper && paper.getClientRects().length>0 && paper.offsetHeight>100;})()";
+        webView.evaluateJavascript(script,result->{
+            if(!"true".equals(result)){
+                Toast.makeText(this,"CV preview is not visible yet. Open Finished CV and retry.",Toast.LENGTH_LONG).show();
+                return;
+            }
+            try{
+                PrintManager manager=(PrintManager)getSystemService(Context.PRINT_SERVICE);
+                if(manager==null)throw new IllegalStateException("Print service unavailable");
+                manager.print("CraftCV Resume",webView.createPrintDocumentAdapter("CraftCV Resume"),
+                    new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                        .setColorMode(PrintAttributes.COLOR_MODE_COLOR).build());
+            }catch(Exception e){
+                Toast.makeText(this,"Could not open Save as PDF. Use native View CV instead.",Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+    private void installDownloadAndPrintHooks(){
+        if(webView==null || !trusted(Uri.parse(webView.getUrl())))return;
+        String script="(function(){"
+            +"window.print=function(){window.location.href='craftcv-print://open';};"
+            +"if(window.__craftcvHooksInstalled)return;window.__craftcvHooksInstalled=true;"
+            +"document.addEventListener('click',function(ev){"
+            +"var a=ev.target.closest&&ev.target.closest('a[download]');"
+            +"if(a&&a.href&&a.href.indexOf('blob:')===0){"
+            +"ev.preventDefault();ev.stopPropagation();"
+            +"window.location.href='craftcv-download://save?url='+encodeURIComponent(a.href)+'&name='+encodeURIComponent(a.getAttribute('download')||'');"
+            +"}},true);"
+            +"})();";
+        webView.evaluateJavascript(script,null);
+    }
+    private void downloadBlob(String blobUrl,String filename,String mime){
+        if(blobInProgress){Toast.makeText(this,"A download is already being prepared",Toast.LENGTH_SHORT).show();return;}
+        if(webView==null || !trusted(Uri.parse(webView.getUrl())) || !blobUrl.startsWith("blob:")){
+            Toast.makeText(this,"Download blocked: unexpected source",Toast.LENGTH_LONG).show();return;
+        }
+        blobInProgress=true;
+        pendingWebName=(filename==null||filename.trim().isEmpty())?"CraftCV-Resume.docx":filename.replaceAll("[^a-zA-Z0-9._-]","_");
+        if(pendingWebName.length()>100)pendingWebName=pendingWebName.substring(0,100);
+        pendingWebMime=(mime==null||mime.isEmpty()||mime.equals("application/octet-stream"))
+            ?"application/vnd.openxmlformats-officedocument.wordprocessingml.document":mime;
+        String code="(function(){window.__craftcvBlobResult='WAIT';"
+            +"fetch("+JSONObject.quote(blobUrl)+").then(function(r){return r.blob();})"
+            +".then(function(blob){"
+            +"if(blob.size>"+MAX_BLOB_BYTES+")throw Error('File larger than 8 MB');"
+            +"var reader=new FileReader();"
+            +"reader.onload=function(){window.__craftcvBlobResult=String(reader.result);};"
+            +"reader.onerror=function(){window.__craftcvBlobResult='ERROR:Cannot read document';};"
+            +"reader.readAsDataURL(blob);"
+            +"})"
+            +".catch(function(e){window.__craftcvBlobResult='ERROR:'+String(e.message||e);});"
+            +"})();";
+        webView.evaluateJavascript(code,null);
+        handler.postDelayed(()->pollBlobResult(0),280);
+    }
+    private void pollBlobResult(int attempt){
+        if(!blobInProgress || webView==null)return;
+        if(attempt>=25){
+            blobInProgress=false;
+            Toast.makeText(this,"Download timed out. Try again.",Toast.LENGTH_LONG).show();
+            return;
+        }
+        webView.evaluateJavascript("window.__craftcvBlobResult || 'WAIT'",value->{
+            String decoded="WAIT";
+            try{
+                Object parsed=new JSONTokener(value).nextValue();
+                if(parsed!=null)decoded=String.valueOf(parsed);
+            }catch(Exception ignored){}
+            if(decoded.equals("WAIT") || decoded.equals("null")){
+                handler.postDelayed(()->pollBlobResult(attempt+1),280);
+                return;
+            }
+            if(decoded.startsWith("ERROR:")){
+                blobInProgress=false;
+                Toast.makeText(this,decoded,Toast.LENGTH_LONG).show();
+                return;
+            }
+            int separator=decoded.indexOf(";base64,");
+            if(!decoded.startsWith("data:") || separator<0){
+                blobInProgress=false;
+                Toast.makeText(this,"The document could not be decoded",Toast.LENGTH_LONG).show();
+                return;
+            }
+            try{
+                String raw=decoded.substring(separator+8);
+                if(raw.length()>MAX_BLOB_BYTES*2)throw new IllegalArgumentException("Too large");
+                pendingWebFile=Base64.decode(raw,Base64.DEFAULT);
+                if(pendingWebFile.length>MAX_BLOB_BYTES)throw new IllegalArgumentException("Too large");
+                blobInProgress=false;
+                Intent intent=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType(pendingWebMime);
+                intent.putExtra(Intent.EXTRA_TITLE,pendingWebName);
+                startActivityForResult(intent,SAVE_WEB_DOWNLOAD);
+            }catch(Exception e){
+                blobInProgress=false;pendingWebFile=null;
+                Toast.makeText(this,"Could not prepare the file: "+e.getMessage(),Toast.LENGTH_LONG).show();
+            }
+            webView.evaluateJavascript("window.__craftcvBlobResult = null",null);
+        });
+    }
+    private void showStatus(String status){
+        if(message==null)return;
+        message.setText(status);
+        message.setVisibility(View.VISIBLE);
+        if(retryButton!=null)retryButton.setVisibility(View.GONE);
+    }
+    private void showError(String status){
+        showStatus(status);
+        if(retryButton!=null)retryButton.setVisibility(View.VISIBLE);
+        if(loadProgress!=null)loadProgress.setVisibility(View.GONE);
+        if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+    }
+    private void retryOnline(){
+        pageFailed=false;
+        if(retryButton!=null)retryButton.setVisibility(View.GONE);
+        if(webView==null){recreate();return;}
+        if(!isNetworkAvailable()){
+            showError("You are offline. Your saved CVs are safe. Connect to the internet and tap Retry.");
+            return;
         }
         webView.loadUrl(HOME);
     }
-
-    /** Request current consent status before ever attempting a test ad request. */
-    private void initializeConsentAndTestAds() {
-        consentInformation = UserMessagingPlatform.getConsentInformation(this);
-        ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
-        consentInformation.requestConsentInfoUpdate(this, params,
-            () -> {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this, formError -> {
-                    if (consentInformation.canRequestAds()) startTestBanner();
-                });
-            },
-            error -> {
-                // If the UMP request fails, do not request a fresh ad without consent.
-                if (consentInformation.canRequestAds()) startTestBanner();
+    private boolean isNetworkAvailable(){
+        android.net.ConnectivityManager manager=(android.net.ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        if(manager==null)return false;
+        android.net.Network network=manager.getActiveNetwork();
+        if(network==null)return false;
+        android.net.NetworkCapabilities caps=manager.getNetworkCapabilities(network);
+        return caps!=null&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET);
+    }
+    /**
+     * A successful HTTP load is not proof the React UI rendered. On older Android
+     * WebViews a script error can otherwise leave an entirely blank white page.
+     */
+    private void verifyOnlineScreen(WebView loadedView){
+        if(loadedView==null || loadedView!=webView)return;
+        String url=loadedView.getUrl();
+        if(url==null || !trusted(Uri.parse(url)) || pageFailed)return;
+        String script="(function(){var root=document.getElementById('root');"
+            +"return !!root && !!root.innerText && root.innerText.trim().length>35;})()";
+        loadedView.evaluateJavascript(script, result -> {
+            if(webView!=loadedView || pageFailed)return;
+            if("true".equals(result)){
+                message.setVisibility(View.GONE);
+            }else{
+                showError("Online Studio did not finish displaying. Tap Retry or pull down to refresh. Your offline CVs are safe.");
             }
-        );
+        });
     }
-
-    private void startTestBanner() {
-        // Keep all release builds ad-free until a valid STANDARD production unit is configured.
-        if (!BuildConfig.DEBUG || adsStarted || bannerContainer == null) return;
-        adsStarted = true;
-        new Thread(() -> MobileAds.initialize(getApplicationContext(), initializationStatus -> {
-            runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed()) return;
-                bannerAd = new AdView(this);
-                bannerAd.setAdUnitId(TEST_BANNER_ID);
-                bannerAd.setAdSize(AdSize.BANNER);
-                bannerAd.setAdListener(new AdListener() {
-                    @Override public void onAdLoaded() { bannerContainer.setVisibility(View.VISIBLE); }
-                    @Override public void onAdFailedToLoad(com.google.android.gms.ads.LoadAdError error) { bannerContainer.setVisibility(View.GONE); }
-                });
-                bannerContainer.addView(bannerAd, new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER));
-                bannerAd.loadAd(new AdRequest.Builder().build());
-            });
-        })).start();
-    }
-
-    private int dp(int value){return Math.round(getResources().getDisplayMetrics().density*value);}
-    private void addAction(LinearLayout layout,String label,View.OnClickListener click){
-        Button button=new Button(this);
-        button.setText(label);
-        button.setAllCaps(false);
-        button.setTextSize(label.equals("CraftCV") ? 16 : 12);
-        button.setTextColor(Color.WHITE);
-        button.setBackgroundColor(Color.TRANSPARENT);
-        button.setPadding(dp(8),0,dp(8),0);
-        button.setOnClickListener(click);
-        layout.addView(button,new LinearLayout.LayoutParams(0,-1,label.equals("CraftCV")?2:1));
-    }
-    private boolean trusted(Uri uri){
-        return "https".equalsIgnoreCase(uri.getScheme()) && HOST.equalsIgnoreCase(uri.getHost());
-    }
-    private void openExternal(String target){
-        try { startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(target))); }
-        catch (ActivityNotFoundException e) {Toast.makeText(this,"No browser available",Toast.LENGTH_LONG).show();}
-    }
-    private void share(){
-        Intent intent=new Intent(Intent.ACTION_SEND);
-        intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TEXT,HOME);
-        startActivity(Intent.createChooser(intent,"Share CraftCV"));
-    }
-    private void configure(){
+    private void configure() {
         WebSettings settings=webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        // Respect the HTML device-width viewport instead of laying out a
+        // desktop-width page and shrinking it to fit a phone screen.
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(false);
+        settings.setTextZoom(100);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccessFromFileURLs(false);
@@ -181,77 +341,164 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setSupportMultipleWindows(false);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        settings.setBuiltInZoomControls(false);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView,false);
         webView.setWebViewClient(new WebViewClient(){
+            @Override public void onPageStarted(WebView view,String url,android.graphics.Bitmap favicon){
+                pageFailed=false;
+                if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                if(retryButton!=null)retryButton.setVisibility(View.GONE);
+                if(loadProgress!=null){loadProgress.setProgress(0);loadProgress.setVisibility(View.VISIBLE);}
+                showStatus("Opening CraftCV Online Studio…");
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
                 Uri uri=request.getUrl();
-                if (trusted(uri)) return false;
-                if ("http".equalsIgnoreCase(uri.getScheme())||"https".equalsIgnoreCase(uri.getScheme())) {
-                    openExternal(uri.toString());return true;
+                if("craftcv-print".equalsIgnoreCase(uri.getScheme())){
+                    view.post(()->printWebResume());return true;
                 }
+                if("craftcv-download".equalsIgnoreCase(uri.getScheme())){
+                    final String requested=uri.getQueryParameter("url");
+                    final String fileName=uri.getQueryParameter("name");
+                    view.post(()->downloadBlob(requested==null?"":requested,fileName,
+                        fileName!=null&&fileName.endsWith(".pdf")?"application/pdf":
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"));
+                    return true;
+                }
+                if(trusted(uri))return false;
+                if("https".equalsIgnoreCase(uri.getScheme()))openExternal(uri.toString());
                 return true;
             }
             @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
-                if(request.isForMainFrame()){
-                    message.setText("CraftCV couldn't connect. Check your internet connection, then tap Refresh.");
-                    message.setVisibility(View.VISIBLE);
+                if(request.isForMainFrame()) {
+                    pageFailed=true;
+                    if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                    showError("Online Studio could not load. Check your connection and tap Retry. Your offline CVs remain safe.");
                 }
             }
-            @Override public void onPageFinished(WebView view,String url){
-                if(!message.getText().toString().isEmpty() && trusted(Uri.parse(url))){
-                    message.setVisibility(View.GONE);
-                    message.setText("");
+            @Override public void onPageFinished(WebView view,String url) {
+                if(url!=null&&trusted(Uri.parse(url))){
+                    installDownloadAndPrintHooks();
+                    if(!pageFailed)handler.postDelayed(()->verifyOnlineScreen(view),1500);
+                }else if(url==null||url.startsWith("about:blank")){
+                    pageFailed=true;
+                    showError("Page unavailable. Tap Retry or Back to return to the offline CV builder.");
                 }
+                if(refreshLayout!=null)refreshLayout.setRefreshing(false);
+                if(loadProgress!=null)loadProgress.setVisibility(View.GONE);
+            }
+            @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){
+                pageFailed=true;
+                showError("Online Studio stopped responding. Tap Retry to reopen it, or Back to use your offline CV.");
+                if(refreshLayout!=null)refreshLayout.removeView(view);
+                else root.removeView(view);
+                view.destroy();
+                webView=null;
+                return true;
             }
             @Override public void onReceivedSslError(WebView view,SslErrorHandler handler,SslError error){
                 handler.cancel();
-                message.setText("Secure connection failed. Please try again later.");
-                message.setVisibility(View.VISIBLE);
+                pageFailed=true;
+                showError("Secure connection failed. Check your device date and internet connection, then tap Retry.");
             }
         });
         webView.setWebChromeClient(new WebChromeClient(){
-            @Override public boolean onShowFileChooser(WebView view,android.webkit.ValueCallback<Uri[]> callback,FileChooserParams params){
-                if(pendingFiles!=null) pendingFiles.onReceiveValue(null);
+            @Override public void onProgressChanged(WebView view,int progress){
+                if(loadProgress==null)return;
+                loadProgress.setProgress(progress);
+                loadProgress.setVisibility(progress>=100?View.GONE:View.VISIBLE);
+            }
+            @Override public boolean onShowFileChooser(WebView view,android.webkit.ValueCallback<Uri[]> callback,FileChooserParams params) {
+                if(pendingFiles!=null)pendingFiles.onReceiveValue(null);
                 pendingFiles=callback;
-                try { startActivityForResult(params.createIntent(),PICK_FILE);return true; }
-                catch(Exception e){pendingFiles=null;callback.onReceiveValue(null);Toast.makeText(MainActivity.this,"File picker unavailable",Toast.LENGTH_LONG).show();return false;}
+                try {startActivityForResult(params.createIntent(),PICK_FILE);return true;}
+                catch(Exception error){pendingFiles=null;callback.onReceiveValue(null);return false;}
             }
         });
-        webView.setDownloadListener((url,userAgent,contentDisposition,mimeType,contentLength)->{
+        webView.setDownloadListener((url,agent,disposition,mime,length)->{
             Uri uri=Uri.parse(url);
+            if("blob".equalsIgnoreCase(uri.getScheme())){
+                String suggested=URLUtil.guessFileName(url,disposition,mime);
+                if(suggested==null||!suggested.contains("."))suggested="CraftCV-Resume.docx";
+                downloadBlob(url,suggested,mime);
+                return;
+            }
             if(!trusted(uri)){openExternal(url);return;}
             try {
-                DownloadManager.Request req=new DownloadManager.Request(uri);
-                req.setMimeType(mimeType);
-                req.addRequestHeader("User-Agent",userAgent);
+                DownloadManager.Request request=new DownloadManager.Request(uri);
+                request.setMimeType(mime);
+                request.addRequestHeader("User-Agent",agent);
                 String cookie=CookieManager.getInstance().getCookie(url);
-                if(cookie!=null)req.addRequestHeader("Cookie",cookie);
-                req.setTitle(URLUtil.guessFileName(url,contentDisposition,mimeType));
-                req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                req.setDestinationInExternalFilesDir(MainActivity.this,Environment.DIRECTORY_DOWNLOADS,URLUtil.guessFileName(url,contentDisposition,mimeType));
-                ((DownloadManager)getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(req);
-                Toast.makeText(MainActivity.this,"Downloading file",Toast.LENGTH_SHORT).show();
-            } catch(Exception e){Toast.makeText(MainActivity.this,"Download unavailable",Toast.LENGTH_LONG).show();}
+                if(cookie!=null)request.addRequestHeader("Cookie",cookie);
+                String name=URLUtil.guessFileName(url,disposition,mime);
+                request.setTitle(name);
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalFilesDir(this,Environment.DIRECTORY_DOWNLOADS,name);
+                ((DownloadManager)getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(request);
+                Toast.makeText(this,"Download started",Toast.LENGTH_SHORT).show();
+            }catch(Exception ignored){Toast.makeText(this,"Download unavailable",Toast.LENGTH_LONG).show();}
         });
     }
-    @Override protected void onActivityResult(int request,int result,Intent data){
+    @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
-        if(request==PICK_FILE && pendingFiles!=null){
+        if(request==SAVE_WEB_DOWNLOAD){
+            if(result==RESULT_OK&&data!=null&&data.getData()!=null&&pendingWebFile!=null){
+                final Uri destination=data.getData();
+                final byte[] bytes=pendingWebFile;
+                pendingWebFile=null;
+                fileExecutor.execute(()->{
+                    String failure=null;
+                    try(OutputStream output=getContentResolver().openOutputStream(destination)){
+                        if(output==null)throw new IllegalStateException("File destination unavailable");
+                        output.write(bytes);
+                        output.flush();
+                    }catch(Exception e){
+                        failure=e.getMessage()==null?"File save failed":e.getMessage();
+                    }
+                    final String error=failure;
+                    runOnUiThread(()->{
+                        if(isFinishing()||isDestroyed())return;
+                        Toast.makeText(this,error==null?"CraftCV file saved successfully":"File save failed: "+error,
+                            Toast.LENGTH_LONG).show();
+                    });
+                });
+            }else{
+                pendingWebFile=null;
+            }
+            return;
+        }
+        if(request==PICK_FILE&&pendingFiles!=null){
             pendingFiles.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result,data));
             pendingFiles=null;
         }
     }
+    private void navigateBackSafely(){
+        if(webView!=null&&webView.canGoBack()){
+            android.webkit.WebBackForwardList history=webView.copyBackForwardList();
+            int previous=history.getCurrentIndex()-1;
+            if(previous>=0){
+                android.webkit.WebHistoryItem item=history.getItemAtIndex(previous);
+                if(item!=null&&item.getUrl()!=null&&trusted(Uri.parse(item.getUrl()))){
+                    webView.goBack();
+                    return;
+                }
+            }
+        }
+        // Never navigate to about:blank, blob, or a custom-scheme URL.
+        finish();
+    }
     @SuppressWarnings("deprecation")
     @android.annotation.SuppressLint("GestureBackNavigation")
     @Override public void onBackPressed(){
-        if(webView!=null && webView.canGoBack())webView.goBack();
-        else super.onBackPressed();
+        navigateBackSafely();
     }
-    @Override protected void onDestroy(){
-        if(bannerAd!=null){bannerAd.destroy();bannerAd=null;}
-        if(webView!=null){root.removeView(webView);webView.destroy();webView=null;}
+    @Override protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        fileExecutor.shutdown();
+        if(webView!=null){
+            if(refreshLayout!=null)refreshLayout.removeView(webView);
+            else root.removeView(webView);
+            webView.destroy();webView=null;
+        }
         super.onDestroy();
     }
 }

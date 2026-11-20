@@ -1,7 +1,7 @@
 name: Android CI & release bundle
 on:
   push:
-    branches: [main]
+    branches: [main, feature/native-offline-craftcv]
   pull_request:
   workflow_dispatch:
 jobs:
@@ -27,9 +27,17 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
-      - name: Build debug APK and lint
+      - name: Test Word exports, lint and build debug APK
         run: |
-          gradle --no-daemon :app:lintDebug :app:assembleDebug
+          gradle --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+      - name: Show Android lint diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          find app/build -name 'lint-results-debug.txt' -o -name 'lint-results-debug.xml' | while read -r file; do
+            echo "---- $file ----"
+            if [[ "$file" == *.txt ]]; then cat "$file"; fi
+          done
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -55,6 +63,11 @@ jobs:
           echo "CRAFTCV_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
       - name: Build signed release AAB
         if: github.event_name == 'workflow_dispatch'
+        env:
+          # Optional, non-secret publisher identifiers; configure in repo Secrets.
+          # If either is absent, the AAB is built with ads disabled.
+          CRAFTCV_ADMOB_APP_ID: ${{ secrets.CRAFTCV_ADMOB_APP_ID }}
+          CRAFTCV_ADMOB_BANNER_UNIT_ID: ${{ secrets.CRAFTCV_ADMOB_BANNER_UNIT_ID }}
         run: gradle --no-daemon :app:bundleRelease
       - name: Upload signed AAB
         if: github.event_name == 'workflow_dispatch'
